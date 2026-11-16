@@ -1,0 +1,28 @@
+{
+  "rules": {
+    "roles": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null && (root.child('roles').child(auth.uid).val() === 'admin' || (auth.uid === $uid && !root.child('roles').exists() && newData.val() === 'admin'))",
+        ".validate": "!newData.exists() || newData.val() === 'admin' || newData.val() === 'editor' || newData.val() === 'viewer'"
+      }
+    },
+    "users": {
+      ".read": "auth != null && root.child('roles').child(auth.uid).val() === 'admin'",
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "requests": {
+      ".read": "auth != null && root.child('roles').child(auth.uid).val() === 'admin'",
+      "$uid": {
+        ".write": "auth != null && (auth.uid === $uid || root.child('roles').child(auth.uid).val() === 'admin')"
+      }
+    },
+    "sq": {
+      ".read": "auth != null && root.child('roles').child(auth.uid).exists()",
+      ".write": "auth != null && (root.child('roles').child(auth.uid).val() === 'admin' || root.child('roles').child(auth.uid).val() === 'editor')"
+    }
+  }
+}

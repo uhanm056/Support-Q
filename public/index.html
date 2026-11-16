@@ -1,0 +1,1734 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Support Q – reporting hodin a budget</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#003B7A; --navy-2:#0B5BA8; --navy-soft:#E6EEF7; --night:#7FA6D3;
+  --bg:#F5F7FA; --surface:#FFFFFF; --text:#1B2430; --muted:#5C6B7A; --line:#D9E0E8;
+  --good:#1A9963; --warn:#C07F00; --crit:#D24842; --info:#0F6FB5;
+  --rail:#0F2340; --rail-text:#C9D6E6;
+  --f-head:"Bricolage Grotesque",system-ui,"Segoe UI",Arial,sans-serif;
+  --f-text:"Figtree",system-ui,"Segoe UI",Arial,sans-serif;
+  --f-mono:"JetBrains Mono",Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){--bg:#0E141C;--surface:#161E29;--text:#E6ECF2;--muted:#93A1B1;--line:#263241;--navy-soft:#122A47;--navy:#3D7FD0;--night:#2B4C75}
+}
+:root[data-theme="dark"]{--bg:#0E141C;--surface:#161E29;--text:#E6ECF2;--muted:#93A1B1;--line:#263241;--navy-soft:#122A47;--navy:#3D7FD0;--night:#2B4C75}
+
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{background:var(--bg);color:var(--text);font:15px/1.45 var(--f-text);display:flex;min-height:100vh}
+h1,h2,h3{font-family:var(--f-head);margin:0 0 .5rem}
+h1{font-size:1.5rem} h2{font-size:1.1rem;margin-top:.25rem}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.small{font-size:.82rem}
+
+.rail{width:220px;background:var(--rail);color:var(--rail-text);padding:1rem .75rem;display:flex;flex-direction:column;gap:.25rem;flex-shrink:0;position:sticky;top:0;height:100vh}
+.rail .brand{font-family:var(--f-head);color:#fff;font-size:1.05rem;padding:.25rem .5rem 1rem;line-height:1.2}
+.rail .brand small{display:block;font-family:var(--f-text);font-size:.75rem;opacity:.7;font-weight:400;margin-top:.2rem}
+.rail button{all:unset;cursor:pointer;padding:.6rem .75rem;border-radius:8px;min-height:44px;display:flex;align-items:center;gap:.55rem;box-sizing:border-box}
+.rail button:hover{background:rgba(255,255,255,.06)}
+.rail button.active{background:var(--navy-2);color:#fff}
+.rail .spacer{flex:1}
+.rail .meta{font-size:.75rem;opacity:.75;padding:.5rem .75rem;line-height:1.4}
+
+main{flex:1;padding:1.25rem;max-width:1400px;width:100%;min-width:0}
+section[data-view]{display:none} section[data-view].active{display:block}
+.head{display:flex;flex-wrap:wrap;align-items:center;gap:.75rem;justify-content:space-between;margin-bottom:.75rem}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:1rem;margin-bottom:1rem}
+.grid-kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:.75rem;margin-bottom:1rem}
+.grid-kpi .card{margin:0}
+.kpi .lbl{font-size:.74rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.kpi .val{font-family:var(--f-mono);font-size:1.6rem;font-weight:500;margin:.15rem 0}
+.kpi .sub{font-size:.8rem;color:var(--muted)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:999px;font-size:.72rem;font-weight:600;color:#fff;white-space:nowrap}
+.tag.good{background:var(--good)} .tag.warn{background:var(--warn)} .tag.crit{background:var(--crit)} .tag.neutral{background:var(--muted)} .tag.info{background:var(--info)}
+.chips{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.75rem}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:.4rem .8rem;min-height:38px;cursor:pointer;font:inherit;color:inherit}
+.chip.active{background:var(--navy);border-color:var(--navy);color:#fff}
+.chip .d{font-size:.72rem;opacity:.75;margin-left:.3rem}
+.tbl-wrap{overflow:auto;border:1px solid var(--line);border-radius:12px;background:var(--surface);max-height:70vh}
+table{border-collapse:collapse;width:100%}
+th,td{padding:.5rem .65rem;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{position:sticky;top:0;background:var(--navy-soft);font-weight:600;font-size:.74rem;text-transform:uppercase;letter-spacing:.03em;z-index:1}
+th.sort{cursor:pointer} th.sort:hover{text-decoration:underline}
+tbody tr:nth-child(even){background:color-mix(in srgb,var(--line) 22%,transparent)}
+tfoot td{font-weight:600;background:var(--navy-soft);position:sticky;bottom:0}
+table.multi-foot tfoot td{position:static}
+table.multi-foot tfoot tr:first-child td{border-top:2px solid var(--navy)}
+td.num,th.num{font-family:var(--f-mono);text-align:right}
+td.desc{white-space:normal;min-width:220px;max-width:340px;font-size:.85rem}
+td.zero{color:var(--muted);opacity:.5}
+.btn{background:var(--navy);color:#fff;border:0;border-radius:8px;padding:.55rem 1rem;min-height:44px;font:inherit;font-weight:600;cursor:pointer}
+.btn.secondary{background:transparent;color:var(--navy);border:1px solid var(--navy)}
+.btn.danger{background:var(--crit)}
+.btn.sm{min-height:34px;padding:.3rem .7rem;font-size:.85rem}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.drop{border:2px dashed var(--line);border-radius:12px;padding:2rem;text-align:center;color:var(--muted)}
+.drop.over{border-color:var(--navy);background:var(--navy-soft)}
+.drop label{color:var(--navy);cursor:pointer;text-decoration:underline}
+.empty{text-align:center;padding:3rem 1rem;color:var(--muted)}
+.empty .big{font-size:2.4rem}
+.toast{position:fixed;right:1rem;bottom:1rem;background:var(--text);color:var(--bg);padding:.7rem 1rem;border-radius:10px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:50;max-width:420px}
+.toast.show{opacity:1}
+.legend{display:flex;flex-wrap:wrap;gap:1rem;font-size:.8rem;color:var(--muted);margin:.25rem 0 .5rem}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:.35rem}
+.hcin.big{width:110px;font-size:1.3rem;min-height:46px}
+.hcin{width:72px;font:inherit;font-family:var(--f-mono);text-align:right;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:.3rem .4rem;min-height:36px}
+.bar{height:10px;background:var(--line);border-radius:6px;overflow:hidden;position:relative;min-width:140px}
+.bar>span{display:block;height:100%}
+.bar>em{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--text);opacity:.7}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:.6rem}
+.form label{display:flex;flex-direction:column;font-size:.78rem;color:var(--muted);gap:.2rem}
+.form input,.form textarea,select{max-width:100%;font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:.5rem .6rem;min-height:40px}
+.row{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center}
+.warnbox{border-left:4px solid var(--warn);background:color-mix(in srgb,var(--warn) 10%,var(--surface));padding:.6rem .8rem;border-radius:8px;margin:.5rem 0;font-size:.9rem}
+.critbox{border-left:4px solid var(--crit);background:color-mix(in srgb,var(--crit) 10%,var(--surface));padding:.6rem .8rem;border-radius:8px;margin:.5rem 0;font-size:.9rem}
+.okbox{border-left:4px solid var(--good);background:color-mix(in srgb,var(--good) 10%,var(--surface));padding:.6rem .8rem;border-radius:8px;margin:.5rem 0;font-size:.9rem}
+.chart svg{width:100%;height:auto;display:block}
+.chart text{font-family:var(--f-text);fill:var(--muted);font-size:11px}
+.chart .v{font-family:var(--f-mono);fill:var(--text);font-size:11px}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:1rem}
+.two .card{overflow-x:auto}
+.two .card{margin:0}
+ul.plain{margin:.25rem 0;padding-left:1.1rem}
+details summary{cursor:pointer;font-weight:600;margin:.25rem 0}
+.theme-btn{all:unset;cursor:pointer;font-size:.75rem;padding:.4rem .75rem;opacity:.75}
+
+
+/* --- moderní přehled týdne --- */
+.card{box-shadow:0 1px 2px rgba(15,35,64,.04),0 4px 14px rgba(15,35,64,.05);border-radius:14px}
+.verdict{display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;padding:1rem 1.25rem;border-radius:14px;margin-bottom:1rem;color:#fff;background:var(--muted)}
+.verdict.v-good{background:linear-gradient(120deg,#13784D,#1A9963)} .verdict.v-crit{background:linear-gradient(120deg,#A9332E,#D24842)}
+.verdict.v-warn{background:linear-gradient(120deg,#9A6600,#C07F00)} .verdict.v-neutral{background:linear-gradient(120deg,#0F2340,#003B7A)}
+.v-wk{font-size:.8rem;opacity:.85;letter-spacing:.03em} .v-t{font-family:var(--f-head);font-size:1.45rem;font-weight:700} .v-s{font-size:.95rem;opacity:.95}
+.kt-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.85rem;margin-bottom:.75rem}
+.kt{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:.9rem 1rem .8rem;position:relative;overflow:hidden;box-shadow:0 1px 2px rgba(15,35,64,.04),0 4px 14px rgba(15,35,64,.05)}
+.kt::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--muted)}
+.kt-good::before{background:var(--good)} .kt-crit::before{background:var(--crit)} .kt-warn::before{background:var(--warn)}
+.kt-top{display:flex;justify-content:space-between;align-items:center;gap:.5rem}
+.kt-lbl{font-size:.74rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+.kt-badge{font-size:.68rem;font-weight:700;padding:.15rem .5rem;border-radius:999px;background:var(--line);color:var(--text);white-space:nowrap}
+.kt-good .kt-badge{background:color-mix(in srgb,var(--good) 16%,transparent);color:var(--good)}
+.kt-crit .kt-badge{background:color-mix(in srgb,var(--crit) 16%,transparent);color:var(--crit)}
+.kt-warn .kt-badge{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}
+.kt-val{font-family:var(--f-mono);font-size:2rem;font-weight:500;margin:.35rem 0 .1rem;line-height:1.1}
+.kt-val small{font-size:.95rem;color:var(--muted);font-family:var(--f-text)}
+.kt-delta{font-family:var(--f-mono);font-size:.95rem;font-weight:600;color:var(--muted);min-height:1.3em}
+.kt-delta span{font-weight:400;opacity:.85}
+.kt-good .kt-delta{color:var(--good)} .kt-crit .kt-delta{color:var(--crit)} .kt-warn .kt-delta{color:var(--warn)}
+.kt-bot{display:flex;justify-content:space-between;align-items:flex-end;gap:.5rem;margin-top:.35rem}
+.kt-prev{font-size:.78rem;color:var(--muted)}
+.kt-hint{font-size:.74rem;color:var(--muted);margin-top:.35rem;border-top:1px dashed var(--line);padding-top:.35rem}
+.rail button[hidden]{display:none}
+.auth-overlay{position:fixed;inset:0;z-index:100;background:linear-gradient(135deg,#0F2340,#003B7A);display:flex;align-items:center;justify-content:center;padding:1rem}
+.auth-overlay[hidden]{display:none}
+.auth-card{background:var(--surface);color:var(--text);border-radius:16px;padding:1.5rem;width:min(400px,100%);box-shadow:0 20px 60px rgba(0,0,0,.35)}
+.auth-card a{color:var(--navy)}
+.auth-logo{font-family:var(--f-head);font-weight:700;font-size:1.3rem;color:var(--navy);margin-bottom:1rem}
+.auth-logo small{display:block;font-family:var(--f-text);font-weight:400;font-size:.8rem;color:var(--muted)}
+.nowbox{display:flex;align-items:center;gap:.6rem;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:.35rem .8rem .35rem .4rem;box-shadow:0 1px 2px rgba(15,35,64,.04)}
+.nb-cw{background:var(--navy);color:#fff;font-family:var(--f-head);font-weight:700;font-size:1.15rem;border-radius:9px;padding:.35rem .6rem;line-height:1}
+.nb-t{display:flex;flex-direction:column;font-size:.82rem;line-height:1.3}
+.nb-st{font-size:.76rem;font-weight:600} .nb-good{color:var(--good)} .nb-warn{color:var(--warn)} .nb-crit{color:var(--crit)}
+.hc-card summary{cursor:pointer;list-style:none;display:flex;gap:.5rem;align-items:center}
+.hc-card summary::before{content:"▸";color:var(--muted)} .hc-card[open] summary::before{content:"▾"}
+.mv{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(60px,1fr) 96px;gap:.6rem;align-items:center;padding:.45rem 0;border-bottom:1px solid var(--line)}
+.mv:last-child{border-bottom:0}
+.mv-l{display:flex;flex-direction:column;min-width:0} .mv-l span{font-size:.78rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mv-bar{height:10px;background:var(--bg);border-radius:6px;overflow:hidden} .mv-bar i{display:block;height:100%;border-radius:6px}
+.mv-bar i.crit{background:var(--crit)} .mv-bar i.good{background:var(--good)}
+.mv-v{text-align:right;font-weight:600} .mv-v small{display:block;font-weight:400;color:var(--muted);font-size:.72rem}
+
+@media (max-width:1100px){ .kt-grid{grid-template-columns:repeat(2,minmax(0,1fr))} }
+@media (max-width:600px){ .kt-grid{grid-template-columns:minmax(0,1fr)} }
+@media (max-width:900px){ .two{grid-template-columns:minmax(0,1fr)} }
+@media (max-width:760px){
+  body{flex-direction:column;font-size:16px}
+  .rail{width:100%;height:auto;flex-direction:row;padding:.4rem;position:sticky;bottom:0;top:auto;order:2;overflow-x:auto}
+  .rail .brand,.rail .spacer,.rail .meta,.rail .theme-btn{display:none}
+  .rail button{flex:1;justify-content:center;font-size:.8rem;padding:.5rem}
+  main{padding:.75rem;order:1}
+}
+@media print{ .rail,.btn,.drop{display:none} body{display:block} .tbl-wrap{max-height:none} }
+</style>
+</head>
+<body>
+
+<aside class="rail" id="rail">
+  <div class="brand">Support Q<small>Reporting hodin · Planá</small></div>
+  <button data-go="trend" class="active">📈 Týden po týdnu</button>
+  <button data-go="tydny">🔍 Detail týdne</button>
+  <button data-go="prehled">📆 Měsíc</button>
+  <button data-go="budget">💰 Objednávky</button>
+  <button data-go="import">⬆️ Import</button>
+  <button data-go="metodika">ℹ️ Metodika</button>
+  <div class="spacer"></div>
+  <div class="meta" id="railMeta">Načítám…</div>
+  <button class="theme-btn" id="themeBtn">◐ Světlý / tmavý</button>
+  <button class="theme-btn" id="logoutBtn" hidden>⎋ Odhlásit</button>
+</aside>
+
+<main>
+  <!-- PŘEHLED -->
+  <section data-view="trend" class="active">
+    <div class="head"><h1>Odpracované hodiny – týden po týdnu</h1><div class="row"><div id="nowBox"></div><button class="btn" id="reportBtn">📧 Report pro Plant Managera</button></div></div>
+    <div id="reportPanel"></div>
+    <div id="trendBody"></div>
+  </section>
+
+  <section data-view="prehled">
+    <div class="head"><h1>Přehled měsíce</h1><div class="row"><button class="btn secondary sm" id="exportMonth">Export měsíce (CSV)</button></div></div>
+    <div class="chips" id="monthChips"></div>
+    <div id="prehledBody"></div>
+  </section>
+
+  <!-- TÝDNY -->
+  <section data-view="tydny">
+    <div class="head"><h1>Detail týdne</h1></div>
+    <div class="chips" id="weekChips"></div>
+    <div id="tydnyBody"></div>
+  </section>
+
+  <!-- OBJEDNÁVKY -->
+  <section data-view="budget">
+    <div class="head"><h1>Objednávky a budget</h1><div class="row"><button class="btn sm" id="newOrderBtn">+ Nová objednávka</button></div></div>
+    <div id="orderFormWrap"></div>
+    <div id="budgetBody"></div>
+  </section>
+
+  <!-- IMPORT -->
+  <section data-view="import">
+    <h1>Import</h1>
+    <div class="card">
+      <div class="drop" id="drop">
+        <div class="big" style="font-size:2rem">📥</div>
+        Přetáhni sem týdenní <b>Přehled hodin za poskytnuté služby</b> (.csv / .xlsx)<br>
+        nebo <b>seznam objednávek</b> (.xlsx / .csv) – typ se pozná podle hlavičky.<br>
+        <label>vybrat soubor<input type="file" id="fileInput" multiple hidden accept=".csv,.xlsx,.xls,.txt"></label>
+      </div>
+      <div id="importPreview"></div>
+    </div>
+    <div class="card small">
+      <b>Očekávané sloupce – hodiny:</b> Datum · Projekt · Popis projektu · Poznámka k popisu projektu · Denní hodiny · Noční hodiny · Hodiny celkem (pořadí nehraje roli, řádek „Sumar“ slouží jako kontrolní součet).<br>
+      <b>Očekávané sloupce – objednávky:</b> Objednávka (číslo PO) · Projekt (jeden nebo více kódů oddělených čárkou) · volitelně Hodiny, Částka, Sazba den, Sazba noc, Platnost od, Platnost do, Poznámka. Objednávky jdou zadat i ručně v sekci Objednávky.
+    </div>
+  </section>
+
+  <!-- METODIKA -->
+  <section data-view="metodika">
+    <h1>Metodika</h1>
+    <div class="card" id="metodikaText"></div>
+    <div class="card"><h2>Historie importů</h2><div id="importHistory"></div></div>
+    <div class="card" hidden><h2>Uživatelé a přístupy</h2><div id="usersAdmin"></div></div>
+    <div class="card"><h2>Správa dat</h2><div id="dataAdmin"></div></div>
+  </section>
+</main>
+
+<div class="toast" id="toast"></div>
+<div id="authOverlay" class="auth-overlay" hidden></div>
+
+<script>
+/* ===================== 0. Firebase konfigurace =====================
+   Vlož sem hodnoty z Firebase Console → Project settings → Your apps → Web app → firebaseConfig.
+   Dokud je apiKey prázdný, aplikace běží lokálně (data jen v tomto prohlížeči). */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyD8IkCALQhub8CLYngEOI9p1sbX6H2PmTY",
+  authDomain: "support-q-working-hours.firebaseapp.com",
+  databaseURL: "https://support-q-working-hours-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "support-q-working-hours",
+  appId: "1:825200075055:web:855c1c9f7675fef75fc1da",
+  messagingSenderId: "825200075055",
+  storageBucket: "support-q-working-hours.firebasestorage.app"
+};
+const FB_ON = !!FIREBASE_CONFIG.apiKey;
+const FB_VER = '10.12.2';
+
+/* ===================== 1. Konstanty a prahy ===================== */
+const LS_KEY = 'sq.reporting.v1';
+const RAG_PCT = 0.05;            // W_n vs W_n-1: >+5 % ROSTE (červená), <-5 % KLESÁ (zelená)
+const SHIFT_H = 12;              // model 12h směn – ekvivalent osob = hodiny / 12
+const RUNRATE_DAYS = 28;         // run-rate pro prognózu čerpání objednávky
+const FAST_BURN_PP = 10;         // čerpání o >10 p.b. rychlejší než uplynulý čas = RYCHLÉ ČERPÁNÍ
+const HC_NORM = 42;              // 12h model: krátký týden 36 h, dlouhý 48 h, průměr 42 h / osobu / týden
+const HC_WARN = 48;              // > 48 h/os/týden = nad dlouhým týdnem 12h modelu (přesčas)
+const HC_CRIT = 60;              // > 60 h/os/týden = 5+ směn týdně – ověřit
+const DOW = ['Po','Út','St','Čt','Pá','So','Ne'];
+const MONTHS = ['leden','únor','březen','duben','květen','červen','červenec','srpen','září','říjen','listopad','prosinec'];
+
+/* ===================== 2. Stav ===================== */
+let ROWS = {};          // "YYYY-MM-DD|PROJ" -> [denní, noční]
+const PM_EMAIL_DEFAULT = 'milan.hanus@yanfeng.com';
+const metaDefaults = () => ({ projects:{}, orders:[], imports:[], cov:[], hc:{}, hcp:{}, cur:'EUR', pmEmail:PM_EMAIL_DEFAULT });
+let META = metaDefaults();
+let UI = { month:null, week:null, proj:'', sort:{k:'t',dir:-1}, editOrder:null, pending:[] };
+
+/* ===================== 3. Perzistence – odstíněná vrstva ===================== */
+const store = {
+  mode:'local', db:null, dl:null, canWrite:true,
+  fb:null, user:null, role:null,
+  async init(){
+    if (FB_ON) return this.initFirebase();
+    const use = n => (window.claude && typeof window.claude.use === 'function')
+      ? Promise.race([window.claude.use(n), new Promise(r => setTimeout(() => r(null), 10000))]).catch(() => null)
+      : Promise.resolve(null);
+    const [db, dl, user] = await Promise.all([use('db'), use('downloads'), use('user')]);
+    this.dl = dl;
+    if (db){ this.db = db; this.mode = 'db'; }
+    if (user && typeof user.can === 'function'){
+      try { const c = await user.can('data.write'); if (c === false) this.canWrite = false; } catch(e){}
+    }
+  },
+  async initFirebase(){
+    const load = src => new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('Nepodařilo se načíst Firebase – zkontroluj připojení.')); document.head.appendChild(s); });
+    const base = `https://www.gstatic.com/firebasejs/${FB_VER}/`;
+    await load(base + 'firebase-app-compat.js');
+    await Promise.all([load(base + 'firebase-auth-compat.js'), load(base + 'firebase-database-compat.js')]);
+    firebase.initializeApp(FIREBASE_CONFIG);
+    this.fb = firebase.database(); this.mode = 'fb';
+    const user = await new Promise(res => { const off = firebase.auth().onAuthStateChanged(u => { off(); res(u); }); });
+    if (!user){ showAuth('login'); await new Promise(res => { authResolve = res; }); }
+    this.user = firebase.auth().currentUser;
+    await this.fb.ref('users/' + this.user.uid).update({ email: this.user.email, lastLogin: new Date().toISOString() }).catch(() => {});
+    const rolesSnap = await this.fb.ref('roles').once('value');
+    const roles = rolesSnap.val() || {};
+    this.role = roles[this.user.uid] || null;
+    if (!this.role){
+      const noAdmin = !Object.values(roles).includes('admin');
+      await this.fb.ref('requests/' + this.user.uid).set({ email: this.user.email, at: new Date().toISOString() }).catch(() => {});
+      showAuth('pending', { noAdmin });
+      await new Promise(() => {});                       // čeká na schválení – stránka se obnoví po přidělení role
+    }
+    this.canWrite = this.role === 'admin' || this.role === 'editor';
+    hideAuth();
+  },
+  listen(){
+    if (this.mode !== 'fb') return;
+    let first = true;
+    this.fb.ref('sq').on('value', snap => {
+      if (first){ first = false; return; }
+      const v = snap.val() || {};
+      const a = document.activeElement;
+      if (a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT')){ store._pending = v; return; }
+      applyRemote(v);
+    });
+    document.addEventListener('focusout', () => setTimeout(() => { const a = document.activeElement; if (store._pending && !(a && /INPUT|TEXTAREA|SELECT/.test(a.tagName))){ const v = store._pending; store._pending = null; applyRemote(v); } }, 300));
+  },
+  async load(){
+    try{
+      if (this.mode === 'fb'){
+        const v = (await this.fb.ref('sq').once('value')).val() || {};
+        return fbToData(v);
+      }
+      if (this.mode === 'db'){
+        const [m, months] = await Promise.all([this.db.doc('sq/meta').get(), this.db.collection('months').get()]);
+        const meta = m.exists ? m.data() : null;
+        const rows = {};
+        months.docs.forEach(d => Object.assign(rows, (d.data() || {}).rows || {}));
+        return { meta, rows };
+      }
+      const raw = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
+      return raw || { meta:null, rows:{} };
+    }catch(e){ console.warn('load', e); return { meta:null, rows:{} }; }
+  },
+  async saveMonths(monthKeys){
+    if (this.mode === 'fb'){
+      const upd = {};
+      for (const mk of monthKeys){
+        const part = {};
+        for (const k in ROWS) if (k.startsWith(mk)) part[k] = ROWS[k];
+        upd['months/' + mk] = Object.keys(part).length ? { rows: part } : null;
+      }
+      await this.fb.ref('sq').update(upd);
+      return;
+    }
+    if (this.mode === 'db'){
+      for (const mk of monthKeys){
+        const part = {};
+        for (const k in ROWS) if (k.startsWith(mk)) part[k] = ROWS[k];
+        if (Object.keys(part).length) await this.db.doc('months/' + mk).set({ rows: part });
+        else await this.db.doc('months/' + mk).delete();
+      }
+    } else this._local();
+  },
+  async saveMeta(){
+    if (this.mode === 'fb'){ await this.fb.ref('sq/meta').set(JSON.parse(JSON.stringify(META))); return; }
+    if (this.mode === 'db') await this.db.doc('sq/meta').set(JSON.parse(JSON.stringify(META)));
+    else this._local();
+  },
+  _local(){ localStorage.setItem(LS_KEY, JSON.stringify({ meta: META, rows: ROWS })); },
+  async download(filename, text){
+    if (this.dl){
+      try { await this.dl.save({ filename, data: typeof text === 'string' ? text : new Blob([text]) }); return; }
+      catch(e){ if (e && e.code === 'declined') return; toast('Stažení se nepodařilo: ' + (e && e.message || e)); return; }
+    }
+    try{
+      const a = document.createElement('a');
+      const isBin = typeof text !== 'string';
+      a.href = URL.createObjectURL(new Blob([text], { type: isBin ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'text/plain;charset=utf-8' }));
+      a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+    }catch(e){ toast('Stažení zde není dostupné'); }
+  }
+};
+async function safeSave(fn){
+  try { await fn(); return true; }
+  catch(e){
+    console.warn(e);
+    const code = e && e.code;
+    if (code === 'PERMISSION_DENIED' || /permission_denied/i.test(String(e && e.message))){ store.canWrite = false; renderAll(); toast('Nemáš oprávnění zapisovat – jsi čtenář.'); }
+    else if (code === 'invalid_argument'){ store.canWrite = false; renderAll(); toast('Nemáš oprávnění zapisovat – data jsou jen ke čtení.'); }
+    else if (code === 'quota_exceeded') toast('Úložiště je plné – smaž staré měsíce v Metodice.');
+    else toast('Uložení selhalo: ' + (e && e.message || e));
+    return false;
+  }
+}
+
+function fbToData(v){
+  const rows = {};
+  Object.values(v.months || {}).forEach(m => Object.assign(rows, (m && m.rows) || {}));
+  return { meta: v.meta || null, rows };
+}
+function applyRemote(v){
+  const d = fbToData(v);
+  META = Object.assign(metaDefaults(), d.meta || {});
+  ROWS = d.rows;
+  renderAll();
+}
+let authResolve = null;
+function showAuth(mode, opt = {}){
+  const el = document.getElementById('authOverlay'); el.hidden = false;
+  if (mode === 'login' || mode === 'register'){
+    const reg = mode === 'register';
+    el.innerHTML = `<div class="auth-card">
+      <div class="auth-logo">Support Q<small>Reporting hodin · Planá</small></div>
+      <h2>${reg ? 'Nový účet' : 'Přihlášení'}</h2>
+      <form id="authForm" class="form" style="grid-template-columns:1fr">
+        <label>E-mail<input type="email" name="email" required autocomplete="username"></label>
+        <label>Heslo${reg ? ' (min. 6 znaků)' : ''}<input type="password" name="pw" required minlength="6" autocomplete="${reg ? 'new-password' : 'current-password'}"></label>
+        <button class="btn" type="submit">${reg ? 'Vytvořit účet' : 'Přihlásit'}</button>
+      </form>
+      <div id="authMsg" class="small" style="min-height:1.2em;margin:.5rem 0;color:var(--crit)"></div>
+      <div class="row small" style="justify-content:space-between">
+        <a href="#" id="authSwitch">${reg ? 'Mám účet – přihlásit' : 'Nemám účet – vytvořit'}</a>
+        ${reg ? '' : '<a href="#" id="authReset">Zapomenuté heslo</a>'}
+      </div>
+      <p class="small muted" style="margin-top:1rem">Nový účet musí schválit správce (Plant Manager).</p>
+    </div>`;
+    el.querySelector('#authSwitch').onclick = ev => { ev.preventDefault(); showAuth(reg ? 'login' : 'register'); };
+    const rs = el.querySelector('#authReset');
+    if (rs) rs.onclick = async ev => { ev.preventDefault(); const em = el.querySelector('[name=email]').value.trim(); const m = el.querySelector('#authMsg');
+      if (!em){ m.textContent = 'Zadej e-mail a klikni znovu.'; return; }
+      try { await firebase.auth().sendPasswordResetEmail(em); m.style.color = 'var(--good)'; m.textContent = 'E-mail pro obnovu hesla odeslán.'; } catch(e){ m.textContent = authErr(e); } };
+    el.querySelector('#authForm').onsubmit = async ev => {
+      ev.preventDefault();
+      const f = new FormData(ev.target), em = String(f.get('email')).trim(), pw = String(f.get('pw')), m = el.querySelector('#authMsg');
+      m.style.color = 'var(--crit)'; m.textContent = '';
+      try {
+        await firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
+        if (reg) await firebase.auth().createUserWithEmailAndPassword(em, pw);
+        else await firebase.auth().signInWithEmailAndPassword(em, pw);
+        if (authResolve){ const r = authResolve; authResolve = null; r(); }
+      } catch(e){ m.textContent = authErr(e); }
+    };
+  } else if (mode === 'pending'){
+    const u = firebase.auth().currentUser;
+    el.innerHTML = `<div class="auth-card">
+      <div class="auth-logo">Support Q<small>Reporting hodin · Planá</small></div>
+      <h2>Čeká se na schválení</h2>
+      <p>Účet <b>${esc(u.email)}</b> je vytvořený. Správce ti musí přidělit přístup – dej mu vědět.</p>
+      ${opt.noAdmin ? `<div class="warnbox">V aplikaci zatím není žádný správce. Jsi-li Plant Manager a nastavuješ aplikaci poprvé, převezmi roli správce.</div><button class="btn" id="claimAdmin">Stát se správcem</button>` : ''}
+      <div class="row" style="margin-top:1rem"><button class="btn secondary" id="authReload">Zkontrolovat znovu</button><button class="btn secondary" id="authOut">Odhlásit</button></div>
+    </div>`;
+    el.querySelector('#authReload').onclick = () => location.reload();
+    el.querySelector('#authOut').onclick = async () => { await firebase.auth().signOut(); location.reload(); };
+    const ca = el.querySelector('#claimAdmin');
+    if (ca) ca.onclick = async () => { try { await firebase.database().ref('roles/' + u.uid).set('admin'); location.reload(); } catch(e){ toast('Nepodařilo se: ' + e.message); } };
+  }
+}
+function hideAuth(){ const el = document.getElementById('authOverlay'); el.hidden = true; el.innerHTML = ''; }
+function authErr(e){
+  const c = e && e.code || '';
+  return ({ 'auth/invalid-credential':'Špatný e-mail nebo heslo.', 'auth/wrong-password':'Špatný e-mail nebo heslo.', 'auth/user-not-found':'Účet neexistuje.',
+    'auth/email-already-in-use':'Účet s tímto e-mailem už existuje – přihlas se.', 'auth/weak-password':'Heslo musí mít aspoň 6 znaků.',
+    'auth/invalid-email':'Neplatný e-mail.', 'auth/too-many-requests':'Příliš mnoho pokusů – zkus to za chvíli.',
+    'auth/network-request-failed':'Chyba připojení.', 'auth/api-key-not-valid.-please-pass-a-valid-api-key.':'Neplatný apiKey v konfiguraci aplikace.', 'auth/invalid-api-key':'Neplatný apiKey v konfiguraci aplikace.', 'auth/operation-not-allowed':'Ve Firebase není zapnuté přihlášení e-mailem a heslem.' })[c] || (e && e.message) || 'Chyba přihlášení.';
+}
+const ROLE_CZ = { admin:'správce', editor:'editor (nahrává)', viewer:'čtenář' };
+async function renderUsers(){
+  const el = document.getElementById('usersAdmin'); if (!el) return;
+  if (store.mode !== 'fb'){ el.closest('.card').hidden = true; return; }
+  el.closest('.card').hidden = false;
+  if (store.role !== 'admin'){ el.innerHTML = `<p class="small muted">Přihlášen: <b>${esc(store.user.email)}</b> · role ${ROLE_CZ[store.role] || store.role}. Správu uživatelů má jen správce.</p>`; return; }
+  const [r, u, q] = await Promise.all(['roles','users','requests'].map(k => store.fb.ref(k).once('value').then(s => s.val() || {})));
+  const sel = (uid, cur) => `<select data-role="${uid}">${['viewer','editor','admin'].map(x => `<option value="${x}" ${x === cur ? 'selected' : ''}>${ROLE_CZ[x]}</option>`).join('')}<option value="">— odebrat přístup —</option></select>`;
+  const pend = Object.entries(q).filter(([uid]) => !r[uid]);
+  el.innerHTML = `
+    ${pend.length ? `<h3>Žádosti o přístup (${pend.length})</h3><table><tbody>${pend.map(([uid, x]) => `<tr><td>${esc(x.email)}</td><td class="small muted">${x.at ? new Date(x.at).toLocaleString('cs-CZ') : ''}</td>
+      <td><button class="btn sm" data-grant="${uid}" data-r="editor">Editor</button> <button class="btn secondary sm" data-grant="${uid}" data-r="viewer">Čtenář</button> <button class="btn secondary sm" data-deny="${uid}">Zamítnout</button></td></tr>`).join('')}</tbody></table>` : '<p class="small muted">Žádné nové žádosti o přístup.</p>'}
+    <h3 style="margin-top:1rem">Uživatelé s přístupem</h3>
+    <table><tbody>${Object.entries(r).map(([uid, role]) => `<tr><td>${esc((u[uid] && u[uid].email) || uid)}${uid === store.user.uid ? ' <span class="tag info">TY</span>' : ''}</td><td>${uid === store.user.uid ? ROLE_CZ[role] : sel(uid, role)}</td><td class="small muted">${u[uid] && u[uid].lastLogin ? 'naposledy ' + new Date(u[uid].lastLogin).toLocaleDateString('cs-CZ') : ''}</td></tr>`).join('')}</tbody></table>
+    <p class="small muted">Editor = Support Q (nahrává reporty, vyplňuje headcount). Čtenář = kolegové (jen prohlíží). Správce = vše včetně schvalování.</p>`;
+}
+
+/* ===================== 4. Pomocné funkce ===================== */
+const norm = s => String(s ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim();
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function num(v){
+  if (v == null || v === '') return null;
+  if (typeof v === 'number') return v;
+  let s = String(v).replace(/[\s ]/g,'').replace(/Kč|CZK|EUR|€/gi,'');
+  if (s === '') return null;
+  if (s.includes(',')) s = s.replace(/\.(?=.*,)/g,'').replace(/,(?=.*,)/g,'').replace(',', '.');   // "3,464,00" i "1.250,50"
+  const n = parseFloat(s);
+  return isNaN(n) ? null : n;
+}
+function toISO(v){
+  if (v == null || v === '') return null;
+  if (typeof v === 'number' && v > 30000){ const d = new Date(Date.UTC(1899,11,30) + v*86400000); return d.toISOString().slice(0,10); }
+  const s = String(v).trim();
+  let m = s.match(/^(\d{1,2})\.\s*(\d{1,2})\.\s*(\d{4})/);
+  if (m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+  m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if (m){ const y = m[3].length === 2 ? '20' + m[3] : m[3]; return `${y}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`; }
+  return null;
+}
+const dObj = iso => new Date(iso + 'T00:00:00Z');
+const addDays = (iso, n) => { const d = dObj(iso); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0,10); };
+const daysBetween = (a, b) => Math.round((dObj(b) - dObj(a)) / 86400000);
+const dow = iso => (dObj(iso).getUTCDay() + 6) % 7;
+function isoWeek(iso){
+  const d = dObj(iso); d.setUTCDate(d.getUTCDate() - dow(iso) + 3);
+  const y = d.getUTCFullYear(), j4 = new Date(Date.UTC(y,0,4));
+  const w = 1 + Math.round(((d - j4) / 86400000 - 3 + ((j4.getUTCDay() + 6) % 7)) / 7);
+  return `${y}-W${String(w).padStart(2,'0')}`;
+}
+function weekMonday(wk){
+  const [y, w] = wk.split('-W').map(Number);
+  const j4 = new Date(Date.UTC(y,0,4)); const mon = new Date(j4); mon.setUTCDate(j4.getUTCDate() - ((j4.getUTCDay() + 6) % 7) + (w - 1) * 7);
+  return mon.toISOString().slice(0,10);
+}
+const weekDates = wk => { const m = weekMonday(wk); return [0,1,2,3,4,5,6].map(i => addDays(m, i)); };
+const cw = wk => 'CW' + wk.slice(-2);
+const fmtD = iso => { const d = dObj(iso); return d.getUTCDate() + '. ' + (d.getUTCMonth() + 1) + '.'; };
+const fmtDY = iso => iso ? fmtD(iso) + ' ' + iso.slice(0,4) : '–';
+const monthName = mk => MONTHS[+mk.slice(5) - 1] + ' ' + mk.slice(0,4);
+const daysInMonth = mk => new Date(Date.UTC(+mk.slice(0,4), +mk.slice(5), 0)).getUTCDate();
+const fmt = (v, d = 1) => v == null || isNaN(v) ? '–' : v.toLocaleString('cs-CZ', { minimumFractionDigits: 0, maximumFractionDigits: d });
+const CUR_SYM = { EUR:'€', CZK:'Kč' };
+const cur = () => CUR_SYM[META.cur] || META.cur || '€';
+const fmtKc = v => v == null || isNaN(v) ? '–' : Math.round(v).toLocaleString('cs-CZ') + ' ' + cur();
+const pct = (v, d = 0) => v == null || !isFinite(v) ? '–' : (v > 0 ? '+' : '') + (v * 100).toLocaleString('cs-CZ', { maximumFractionDigits: d }) + ' %';
+
+function rag(cur, prev){
+  if (prev == null || prev === 0) return { cls:'neutral', label:'–', pct:null };
+  const d = (cur - prev) / prev;
+  if (d >  RAG_PCT) return { cls:'crit', label:'ROSTE', pct:d };
+  if (d < -RAG_PCT) return { cls:'good', label:'KLESÁ', pct:d };
+  return { cls:'warn', label:'STABILNÍ', pct:d };
+}
+
+/* Headcount: h na osobu za týden (7 dní) */
+function hcRag(hpw){
+  if (hpw == null || !isFinite(hpw)) return { cls:'neutral', label:'–' };
+  if (hpw > HC_CRIT) return { cls:'crit', label:'OVĚŘIT' };
+  if (hpw > HC_WARN) return { cls:'warn', label:'PŘESČAS' };
+  return { cls:'good', label:'V MODELU' };
+}
+const HC_FIELDS = [ ['op','Operátoři'], ['ko','Koordinátoři'], ['pm','Projektový manažer'], ['ad','Administrativa'] ];
+const hcGet = wk => {
+  const w = (META.hc && META.hc[wk]) || {}, h = {}; let t = null;
+  HC_FIELDS.forEach(([k]) => { h[k] = typeof w[k] === 'number' ? w[k] : null; if (h[k] != null) t = (t || 0) + h[k]; });
+  h.t = t; return h;
+};
+const hcWeekTotal = wk => hcGet(wk).t;
+const hcpOf = (wk, p) => { const w = (META.hcp && META.hcp[wk]) || {}; return typeof w[p] === 'number' ? w[p] : null; };
+const hcpSum = wk => { const w = (META.hcp && META.hcp[wk]) || {}; const v = Object.values(w).filter(x => typeof x === 'number'); return v.length ? v.reduce((a, b) => a + b, 0) : null; };
+const hcLegend = () => `<div class="legend">Headcount = počet lidí Support Q v Plané v daném týdnu (operátoři + koordinátoři + projektový manažer + administrativa), ne počet pozic na směnu · h/os = hodiny týdne ÷ headcount · 12h model: Ø ${HC_NORM} h/týden · <span class="tag good">V MODELU</span> ≤ ${HC_WARN} h · <span class="tag warn">PŘESČAS</span> ${HC_WARN}–${HC_CRIT} h · <span class="tag crit">OVĚŘIT</span> &gt; ${HC_CRIT} h</div>`;
+
+/* ===================== 5. Import – detekce a parsování ===================== */
+let XLSXp;
+const getXLSX = () => XLSXp ??= new Promise((res, rej) => {
+  const s = document.createElement('script');
+  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  s.onload = () => res(window.XLSX); s.onerror = () => { XLSXp = null; rej(new Error('Knihovna pro Excel se nenačetla – zkontroluj připojení, nebo nahraj CSV.')); };
+  document.head.appendChild(s);
+});
+async function sniff(file){
+  const b = new Uint8Array(await file.slice(0,8).arrayBuffer());
+  if (b[0] === 0x50 && b[1] === 0x4B) return 'xlsx';
+  if (b[0] === 0xD0 && b[1] === 0xCF) return 'xls';
+  const head = await file.slice(0,4096).text();
+  return /<table/i.test(head) ? 'html' : 'csv';
+}
+async function readText(file){
+  const buf = await file.arrayBuffer();
+  let t = new TextDecoder('utf-8').decode(buf);
+  if (t.includes('\uFFFD')) t = new TextDecoder('windows-1250').decode(buf);   // Excel CZ uloží CSV v cp1250
+  return t.replace(/^﻿/, '');
+}
+function splitCsv(text){
+  const first = text.split(/\r?\n/).find(l => l.trim()) || '';
+  const sep = (first.match(/;/g) || []).length >= (first.match(/,/g) || []).length ? ';' : (first.includes('\t') ? '\t' : ',');
+  const out = []; let row = [], cell = '', q = false;
+  for (let i = 0; i < text.length; i++){
+    const c = text[i];
+    if (q){ if (c === '"'){ if (text[i+1] === '"'){ cell += '"'; i++; } else q = false; } else cell += c; continue; }
+    if (c === '"') q = true;
+    else if (c === sep){ row.push(cell); cell = ''; }
+    else if (c === '\n' || c === '\r'){ if (c === '\r' && text[i+1] === '\n') i++; row.push(cell); out.push(row); row = []; cell = ''; }
+    else cell += c;
+  }
+  if (cell !== '' || row.length){ row.push(cell); out.push(row); }
+  return out.filter(r => r.some(c => String(c).trim() !== ''));
+}
+async function fileToRows(file){
+  const kind = await sniff(file);
+  if (kind === 'csv') return splitCsv(await readText(file));
+  if (kind === 'html'){
+    const doc = new DOMParser().parseFromString(await readText(file), 'text/html');
+    const t = [...doc.querySelectorAll('table')].sort((a,b) => b.rows.length - a.rows.length)[0];
+    if (!t) throw new Error('V souboru není tabulka');
+    return [...t.rows].map(r => [...r.cells].map(c => c.textContent.trim()));
+  }
+  const XLSX = await getXLSX();
+  const wb = XLSX.read(await file.arrayBuffer(), { type:'array', cellDates:false });
+  let best = null, bestLen = -1;
+  for (const n of wb.SheetNames){
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[n], { header:1, raw:true, defval:'' });
+    const len = rows.filter(r => r.some(c => c !== '')).length;
+    if (len > bestLen){ best = rows; bestLen = len; }
+  }
+  return best || [];
+}
+/* Hledá hlavičku: spec = {klíč: {any:[[vzory],[vzory]], req:bool}} */
+function findHeader(rows, spec, maxScan = 40){
+  for (let i = 0; i < Math.min(rows.length, maxScan); i++){
+    const cells = rows[i].map(norm), idx = {}, used = new Set(); let ok = true;
+    for (const [key, s] of Object.entries(spec)){
+      const j = cells.findIndex((c, k) => !used.has(k) && s.any.some(p => p.every(x => c.includes(x))) && !(s.not || []).some(x => c.includes(x)));
+      if (j < 0){ if (s.req){ ok = false; break; } continue; }
+      idx[key] = j; used.add(j);
+    }
+    if (ok) return { rowIndex: i, idx };
+  }
+  return null;
+}
+const HOURS_SPEC = {
+  date: { any:[['datum']], req:true },
+  proj: { any:[['projekt']], not:['popis','poznam'], req:true },
+  dh:   { any:[['denni'],['den ']], req:true },
+  nh:   { any:[['nocni'],['noc']], req:true },
+  t:    { any:[['celkem']], req:false },
+  desc: { any:[['popis','projektu']], not:['poznam'], req:false },
+  note: { any:[['poznam']], req:false },
+};
+const ORDER_SPEC = {
+  po:    { any:[['objednav'],['cislo','po'],['po number'],['purchase']], req:true },
+  proj:  { any:[['projekt'],['project']], req:true },
+  hours: { any:[['hodin'],['hours']], req:false },
+  amount:{ any:[['castka'],['hodnota'],['cena'],['amount'],['kc']], not:['sazba','hod'], req:false },
+  rd:    { any:[['sazba','den'],['sazba'],['rate']], not:['noc'], req:false },
+  rn:    { any:[['sazba','noc']], req:false },
+  from:  { any:[['platnost','od'],['od'],['from'],['zacatek']], req:false },
+  to:    { any:[['platnost','do'],['do'],['to'],['konec']], req:false },
+  note:  { any:[['poznam'],['popis'],['note']], req:false },
+};
+
+function parseHours(rows, fileName){
+  const h = findHeader(rows, HOURS_SPEC);
+  if (!h) return null;
+  const { rowIndex, idx } = h;
+  const recs = [], issues = [], projects = {};
+  let sumar = null;
+  for (const r of rows.slice(rowIndex + 1)){
+    const first = norm(r[idx.date]);
+    if (/^(sumar|suma|celkem|total)/.test(first) || (!r[idx.proj] && /sum/.test(norm(r.join(' '))))){
+      const nums = r.slice(1).map(num).filter(v => v != null);
+      if (nums.length >= 3) sumar = { dh: nums[0], nh: nums[1], t: nums[2] };
+      continue;
+    }
+    const d = toISO(r[idx.date]); const p = String(r[idx.proj] ?? '').trim();
+    if (!d || !p) continue;
+    const dh = num(r[idx.dh]) ?? 0, nh = num(r[idx.nh]) ?? 0;
+    if (idx.t != null){ const t = num(r[idx.t]); if (t != null && Math.abs(t - dh - nh) > 0.01) issues.push(`${fmtDY(d)} ${p}: celkem ${fmt(t)} ≠ den ${fmt(dh)} + noc ${fmt(nh)}`); }
+    recs.push({ d, p, dh, nh });
+    projects[p] = { d: idx.desc != null ? String(r[idx.desc] ?? '').trim() : '', n: idx.note != null ? String(r[idx.note] ?? '').trim() : '' };
+  }
+  if (!recs.length) throw new Error('Hlavička nalezena, ale žádné řádky s datem a projektem.');
+  // sloučit duplicitní řádky datum+projekt
+  const map = {};
+  for (const x of recs){ const k = x.d + '|' + x.p; if (map[k]){ map[k][0] += x.dh; map[k][1] += x.nh; issues.push(`Duplicitní řádek ${fmtDY(x.d)} ${x.p} – sečteno`); } else map[k] = [x.dh, x.nh]; }
+  const dates = recs.map(x => x.d).sort();
+  let from = dates[0], to = dates.at(-1);
+  const fm = fileName.match(/(\d{1,2}\.\d{1,2}\.\d{4})\D+(\d{1,2}\.\d{1,2}\.\d{4})/);
+  if (fm){ const a = toISO(fm[1]), b = toISO(fm[2]); if (a && b && a <= from && b >= to && daysBetween(a, b) < 62){ from = a; to = b; } }
+  const tot = Object.values(map).reduce((s, v) => (s.dh += v[0], s.nh += v[1], s), { dh:0, nh:0 });
+  return { type:'hours', file:fileName, map, projects, from, to, tot, sumar, issues, nRows: recs.length,
+           unmapped: rows[rowIndex].filter((c, j) => String(c).trim() && !Object.values(idx).includes(j)) };
+}
+function parseOrders(rows, fileName){
+  const h = findHeader(rows, ORDER_SPEC);
+  if (!h) return null;
+  const { rowIndex, idx } = h; const byPo = {}; const issues = [];
+  for (const r of rows.slice(rowIndex + 1)){
+    const po = String(r[idx.po] ?? '').trim(); if (!po || /^(sum|celkem)/i.test(po)) continue;
+    const projs = String(r[idx.proj] ?? '').split(/[,;\s]+/).map(s => s.trim()).filter(Boolean);
+    const g = k => idx[k] != null ? r[idx[k]] : null;
+    const o = byPo[po] || (byPo[po] = { id: 'o' + Math.random().toString(36).slice(2,9), po, projects:[], hours:null, amount:null, rd:null, rn:null, from:null, to:null, note:'' });
+    projs.forEach(p => { if (!o.projects.includes(p)) o.projects.push(p); });
+    const hh = num(g('hours')), am = num(g('amount'));
+    if (hh != null) o.hours = (o.hours || 0) + hh;
+    if (am != null) o.amount = (o.amount || 0) + am;
+    o.rd = o.rd ?? num(g('rd')); o.rn = o.rn ?? num(g('rn'));
+    o.from = o.from ?? toISO(g('from')); o.to = o.to ?? toISO(g('to'));
+    if (g('note')) o.note = o.note || String(g('note')).trim();
+  }
+  const list = Object.values(byPo);
+  if (!list.length) throw new Error('Hlavička objednávek nalezena, ale žádné řádky.');
+  list.forEach(o => { if (o.hours == null && o.amount == null) issues.push(`${o.po}: chybí objednané hodiny i částka`); if (o.amount != null && o.rd == null) issues.push(`${o.po}: částka bez sazby – čerpání v penězích nepůjde spočítat`); });
+  return { type:'orders', file:fileName, list, issues };
+}
+
+/* ===================== 6. Výpočty – čisté funkce ===================== */
+function allRows(){
+  return Object.entries(ROWS).map(([k, v]) => { const [d, p] = k.split('|'); return { d, p, dh: v[0], nh: v[1], t: v[0] + v[1] }; });
+}
+const covSet = () => new Set(META.cov);
+function monthsList(){
+  const s = new Set(); META.cov.forEach(d => s.add(d.slice(0,7))); Object.keys(ROWS).forEach(k => s.add(k.slice(0,7)));
+  return [...s].sort();
+}
+function weeksList(){
+  const s = new Set(); META.cov.forEach(d => s.add(isoWeek(d))); Object.keys(ROWS).forEach(k => s.add(isoWeek(k.slice(0,10))));
+  return [...s].sort();
+}
+const weekCovered = wk => { const c = covSet(); return weekDates(wk).filter(d => c.has(d)).length; };
+const sum = (rows) => rows.reduce((s, r) => (s.dh += r.dh, s.nh += r.nh, s.t += r.t, s), { dh:0, nh:0, t:0 });
+function lastTwoFullWeeks(rows){
+  const full = weeksList().filter(w => weekCovered(w) === 7);
+  const cur = full.at(-1), prev = full.at(-2);
+  return { cur, prev };
+}
+function weekSum(rows, wk){ const ds = new Set(weekDates(wk)); return sum(rows.filter(r => ds.has(r.d))); }
+
+function orderRate(o){ return { rd: o.rd, rn: o.rn != null ? o.rn : o.rd }; }
+function orderFor(p, d){ return META.orders.filter(o => o.projects.includes(p) && (!o.from || d >= o.from) && (!o.to || d <= o.to)); }
+function rowCost(r){
+  const os = orderFor(r.p, r.d).filter(o => o.rd != null);
+  if (!os.length) return null;
+  const { rd, rn } = orderRate(os[0]);
+  return r.dh * rd + r.nh * rn;
+}
+function orderStats(o, rows){
+  const mine = rows.filter(r => o.projects.includes(r.p) && (!o.from || r.d >= o.from) && (!o.to || r.d <= o.to));
+  const s = sum(mine);
+  const { rd, rn } = orderRate(o);
+  const kc = rd != null ? s.dh * rd + s.nh * rn : null;
+  const budgetH = o.hours != null ? o.hours : (o.amount != null && rd != null ? null : null);
+  const basis = o.hours != null ? 'h' : (o.amount != null && rd != null ? 'kc' : null);
+  const used = basis === 'h' ? s.t : basis === 'kc' ? kc : null;
+  const cap  = basis === 'h' ? o.hours : basis === 'kc' ? o.amount : null;
+  const consumed = cap ? used / cap : null;
+  const lastData = META.cov.length ? [...META.cov].sort().at(-1) : null;
+  let elapsed = null;
+  if (o.from && o.to && lastData){ elapsed = Math.min(1, Math.max(0, (daysBetween(o.from, lastData) + 1) / (daysBetween(o.from, o.to) + 1))); }
+  // run-rate: posledních N kalendářních dní s daty
+  let forecast = null, exhaust = null, perDay = null;
+  if (lastData && cap){
+    const start = addDays(lastData, -(RUNRATE_DAYS - 1));
+    const c = covSet(); const covDays = [...c].filter(d => d >= start && d <= lastData && (!o.from || d >= o.from)).length;
+    const rr = mine.filter(r => r.d >= start);
+    if (covDays >= 7){
+      const rrUsed = basis === 'h' ? sum(rr).t : rr.reduce((a, r) => a + r.dh * rd + r.nh * rn, 0);
+      perDay = rrUsed / covDays;
+      if (o.to && o.to > lastData) forecast = used + perDay * daysBetween(lastData, o.to);
+      else forecast = used;
+      if (perDay > 0 && used < cap){ exhaust = addDays(lastData, Math.ceil((cap - used) / perDay)); }
+    }
+  }
+  let st = { cls:'neutral', label:'BEZ LIMITU' };
+  if (cap){
+    if (consumed > 1) st = { cls:'crit', label:'PŘEČERPÁNO' };
+    else if (forecast != null && forecast > cap) st = { cls:'crit', label:'HROZÍ PŘEČERPÁNÍ' };
+    else if (elapsed != null && (consumed - elapsed) * 100 > FAST_BURN_PP) st = { cls:'warn', label:'RYCHLÉ ČERPÁNÍ' };
+    else st = { cls:'good', label:'OK' };
+  }
+  if (o.to && lastData && lastData > o.to && st.cls !== 'crit') st = { cls:'info', label:'UKONČENA' };
+  return { s, kc, basis, used, cap, consumed, elapsed, forecast, exhaust, perDay, lastData, budgetH };
+}
+function overlaps(){
+  const out = [];
+  for (let i = 0; i < META.orders.length; i++) for (let j = i + 1; j < META.orders.length; j++){
+    const a = META.orders[i], b = META.orders[j];
+    const common = a.projects.filter(p => b.projects.includes(p));
+    if (!common.length) continue;
+    const s1 = a.from || '0000', e1 = a.to || '9999', s2 = b.from || '0000', e2 = b.to || '9999';
+    if (s1 <= e2 && s2 <= e1) out.push(`${a.po} × ${b.po}: ${common.join(', ')}`);
+  }
+  return out;
+}
+function dupDescriptions(projCodes){
+  const by = {};
+  projCodes.forEach(p => { const m = META.projects[p]; const key = norm((m && m.n) || (m && m.d)); if (key) (by[key] ||= []).push(p); });
+  return Object.values(by).filter(a => a.length > 1);
+}
+
+/* ===================== 7. Render ===================== */
+const $ = id => document.getElementById(id);
+const pname = p => { const m = META.projects[p]; return (m && (m.n || m.d)) || ''; };
+
+function emptyState(msg){
+  return `<div class="card empty"><div class="big">📂</div>${msg}<br><br><button class="btn" onclick="go('import')">Přejít na Import</button></div>`;
+}
+
+function trendChart(rows, proj){
+  const wks = weeksList();
+  if (!wks.length) return '';
+  const data = wks.map(w => { const s = weekSum(rows.filter(r => !proj || r.p === proj), w); return { w, ...s, cov: weekCovered(w) }; });
+  const W = Math.max(720, wks.length * 64), H = 230, pad = { l:46, r:10, t:22, b:40 };
+  const max = Math.max(1, ...data.map(d => d.t)) * 1.12;
+  const bw = (W - pad.l - pad.r) / data.length, y = v => pad.t + (H - pad.t - pad.b) * (1 - v / max);
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Trend hodin po týdnech">`;
+  for (let i = 0; i <= 4; i++){ const v = max / 1.12 * i / 4; svg += `<line x1="${pad.l}" x2="${W - pad.r}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${pad.l - 6}" y="${y(v) + 4}" text-anchor="end">${fmt(v,0)}</text>`; }
+  data.forEach((d, i) => {
+    const w = Math.min(bw * .64, 64), x = pad.l + i * bw + (bw - w) / 2, op = d.cov === 7 ? 1 : .45;
+    svg += `<g opacity="${op}"><rect x="${x}" y="${y(d.dh)}" width="${w}" height="${y(0) - y(d.dh)}" fill="var(--navy)" rx="2"/>`;
+    svg += `<rect x="${x}" y="${y(d.dh + d.nh)}" width="${w}" height="${y(d.dh) - y(d.dh + d.nh)}" fill="var(--night)" rx="2"/></g>`;
+    svg += `<text class="v" x="${x + w/2}" y="${y(d.t) - 5}" text-anchor="middle">${fmt(d.t,0)}</text>`;
+    svg += `<text x="${x + w/2}" y="${H - pad.b + 15}" text-anchor="middle">${cw(d.w)}</text>`;
+    svg += `<text x="${x + w/2}" y="${H - pad.b + 29}" text-anchor="middle">${d.cov === 7 ? fmtD(weekDates(d.w)[0]) : d.cov + '/7 dní'}</text>`;
+  });
+  return svg + '</svg>';
+}
+
+function renderPrehled(){
+  const months = monthsList();
+  const el = $('prehledBody');
+  if (!months.length){ $('monthChips').innerHTML = ''; el.innerHTML = emptyState('Zatím žádná data. Nahraj týdenní přehled hodin od Support Q.'); return; }
+  if (!UI.month || !months.includes(UI.month)) UI.month = months.at(-1);
+  $('monthChips').innerHTML = months.map(m => `<button class="chip ${m === UI.month ? 'active' : ''}" data-month="${m}">${monthName(m)}</button>`).join('');
+
+  const rows = allRows();
+  const mk = UI.month, mRows = rows.filter(r => r.d.startsWith(mk));
+  const mSum = sum(mRows);
+  const cov = META.cov.filter(d => d.startsWith(mk)).length, dim = daysInMonth(mk);
+  const { cur, prev } = lastTwoFullWeeks();
+  const wc = cur ? weekSum(rows, cur) : null, wp = prev ? weekSum(rows, prev) : null;
+  const R = wc && wp ? rag(wc.t, wp.t) : rag(0, null);
+  let costKnown = 0, hNoRate = 0; mRows.forEach(r => { const c = rowCost(r); if (c == null) hNoRate += r.t; else costKnown += c; });
+  const ostats = META.orders.map(o => orderStats(o, rows));
+  const risk = ostats.filter(s => s.consumed != null && (s.consumed > 1 || (s.forecast != null && s.forecast > s.cap))).length;
+  const fast = META.orders.filter((o, i) => { const s = ostats[i]; return s.elapsed != null && s.consumed != null && (s.consumed - s.elapsed) * 100 > FAST_BURN_PP && s.consumed <= 1; }).length;
+
+  // týdny v měsíci
+  const mCov = new Set(META.cov.filter(d => d.startsWith(mk)).concat(mRows.map(r => r.d)));
+  const mWeeks = [...new Set([...mCov].sort().map(isoWeek))];
+  const projs = [...new Set(mRows.map(r => r.p))];
+  const trows = projs.map(p => {
+    const pr = mRows.filter(r => r.p === p), s = sum(pr);
+    const wk = mWeeks.map(w => { const ds = new Set(weekDates(w)); return sum(pr.filter(r => ds.has(r.d))).t; });
+    const all = rows.filter(r => r.p === p);
+    const c1 = cur ? weekSum(all, cur).t : null, c0 = prev ? weekSum(all, prev).t : null;
+    const rg = c1 != null && c0 != null ? rag(c1, c0) : rag(0, null);
+    const ords = [...new Set(pr.flatMap(r => orderFor(p, r.d).map(o => o.po)))];
+    let cost = 0, cn = false; pr.forEach(r => { const c = rowCost(r); if (c != null){ cost += c; cn = true; } });
+    return { p, desc: pname(p), wk, ...s, night: s.t ? s.nh / s.t : 0, fte: cov ? s.t / SHIFT_H / cov : null, c1, c0, rg, ords, cost: cn ? cost : null };
+  });
+  const k = UI.sort.k, dir = UI.sort.dir;
+  trows.sort((a, b) => { const va = k.startsWith('w') ? a.wk[+k.slice(1)] : a[k], vb = k.startsWith('w') ? b.wk[+k.slice(1)] : b[k];
+    if (typeof va === 'string' || typeof vb === 'string') return String(va ?? '').localeCompare(String(vb ?? ''), 'cs') * dir;
+    return ((va ?? -Infinity) - (vb ?? -Infinity)) * dir; });
+  const th = (key, label, cls = '') => `<th class="sort ${cls}" data-sort="${key}">${label}${UI.sort.k === key ? (UI.sort.dir < 0 ? ' ▼' : ' ▲') : ''}</th>`;
+
+  const hcW = mWeeks.map(hcWeekTotal).filter(v => v != null);
+  const hcM = hcW.length ? hcW.reduce((a, b) => a + b, 0) / hcW.length : null;
+  const hpwM = hcM && cov ? mSum.t / hcM / (cov / 7) : null, HRM = hcRag(hpwM);
+  const noOrder = projs.filter(p => !META.orders.some(o => o.projects.includes(p)));
+  const dups = dupDescriptions(projs);
+  const ovl = overlaps();
+
+  el.innerHTML = `
+  <div class="grid-kpi">
+    <div class="card kpi"><div class="lbl">Hodiny – ${monthName(mk)}</div><div class="val">${fmt(mSum.t)}</div>
+      <div class="sub">den ${fmt(mSum.dh)} · noc ${fmt(mSum.nh)} · pokryto <b>${cov}/${dim}</b> dní${cov < dim ? ' <span class="tag warn">NEÚPLNÝ</span>' : ''}</div></div>
+    <div class="card kpi"><div class="lbl">Poslední úplný týden ${cur ? cw(cur) : ''}</div><div class="val">${wc ? fmt(wc.t) : '–'}</div>
+      <div class="sub"><span class="tag ${R.cls}">${R.label}</span> ${R.pct != null ? pct(R.pct, 1) + ' vs. ' + cw(prev) + ' (' + fmt(wp.t) + ' h)' : 'chybí předchozí úplný týden'}</div></div>
+    <div class="card kpi"><div class="lbl">Headcount Ø (vykázaný)</div><div class="val">${fmt(hcM, 1)}</div>
+      <div class="sub">${hcM == null ? '<span class="tag warn">NEVYPLNĚNO</span> Support Q doplní v Týden po týdnu' : `z ${hcW.length} týdnů · hodiny odpovídají ${fmt(mSum.t / (cov / 7) / HC_NORM, 0)} osobám`}</div></div>
+    <div class="card kpi"><div class="lbl">Hodin na osobu / týden</div><div class="val">${fmt(hpwM, 1)}</div>
+      <div class="sub"><span class="tag ${HRM.cls}">${HRM.label}</span> norma 12h modelu Ø ${HC_NORM} h</div></div>
+    <div class="card kpi"><div class="lbl">Náklady měsíce</div><div class="val">${costKnown ? fmtKc(costKnown) : '–'}</div>
+      <div class="sub">${hNoRate ? `<span class="tag warn">BEZ SAZBY</span> ${fmt(hNoRate)} h nelze ocenit` : 'všechny hodiny oceněny'}</div></div>
+    <div class="card kpi"><div class="lbl">Objednávky v riziku</div><div class="val">${META.orders.length ? risk : '–'}</div>
+      <div class="sub">${META.orders.length ? `<span class="tag ${risk ? 'crit' : 'good'}">${risk ? 'PŘEČERPÁNÍ' : 'OK'}</span> rychlé čerpání: ${fast}` : 'zatím žádné objednávky'}</div></div>
+  </div>
+
+  <div class="card chart">
+    <div class="row" style="justify-content:space-between"><h2>Trend po týdnech</h2>
+      <select id="projSel"><option value="">Všechny projekty</option>${[...new Set(rows.map(r => r.p))].sort().map(p => `<option value="${esc(p)}" ${p === UI.proj ? 'selected' : ''}>${esc(p)} – ${esc(pname(p))}</option>`).join('')}</select></div>
+    <div class="legend"><span><i style="background:var(--navy)"></i>denní hodiny</span><span><i style="background:var(--night)"></i>noční hodiny</span><span>poloprůhledný sloupec = neúplný týden (méně než 7 dní v datech)</span></div>
+    <div style="overflow-x:auto">${trendChart(rows, UI.proj)}</div>
+  </div>
+
+  ${(noOrder.length || dups.length || ovl.length) ? `<div class="card"><h2>Ke kontrole</h2>
+    ${noOrder.length ? `<div class="warnbox"><b>Projekty bez objednávky (${noOrder.length}):</b> ${noOrder.map(p => `<span class="mono">${esc(p)}</span>`).join(', ')}${META.orders.length ? '' : ' – zatím nejsou nahrané žádné objednávky.'}</div>` : ''}
+    ${dups.length ? `<div class="warnbox"><b>Stejný popis u více projektů:</b> ${dups.map(a => a.map(p => `<span class="mono">${esc(p)}</span>`).join(' + ') + ' („' + esc(pname(a[0])) + '“)').join('; ')} – ověř, že nejde o dvojí vykazování.</div>` : ''}
+    ${ovl.length ? `<div class="critbox"><b>Překryv objednávek</b> (stejný projekt ve dvou platných objednávkách – hodiny se započítají do obou): ${ovl.map(esc).join('; ')}</div>` : ''}
+  </div>` : ''}
+
+  <h2>Projekty – ${monthName(mk)}</h2>
+  <div class="legend">Týden Δ = ${cur ? cw(cur) : 'poslední úplný týden'} vs. ${prev ? cw(prev) : 'předchozí'} · <span class="tag crit">ROSTE</span> &gt; +5 % · <span class="tag warn">STABILNÍ</span> ±5 % · <span class="tag good">KLESÁ</span> &lt; −5 %</div>
+  <div class="tbl-wrap"><table id="projTable">
+    <thead><tr>${th('p','Projekt')}${th('desc','Popis')}${mWeeks.map((w, i) => th('w' + i, cw(w), 'num')).join('')}${th('t','Měsíc h','num')}${th('night','Noc %','num')}${th('fte','Ø osob/den','num')}${th('cost','Náklady','num')}<th>Týden Δ</th><th>Objednávka</th></tr></thead>
+    <tbody>${trows.map(r => `<tr>
+      <td class="mono">${esc(r.p)}</td><td class="desc">${esc(r.desc)}</td>
+      ${r.wk.map(v => `<td class="num ${v ? '' : 'zero'}">${fmt(v)}</td>`).join('')}
+      <td class="num"><b>${fmt(r.t)}</b></td><td class="num">${fmt(r.night * 100, 0)} %</td><td class="num">${fmt(r.fte, 1)}</td>
+      <td class="num">${r.cost != null ? fmtKc(r.cost) : '<span class="muted">bez sazby</span>'}</td>
+      <td><span class="tag ${r.rg.cls}">${r.rg.label}</span> <span class="mono small">${r.rg.pct != null ? pct(r.rg.pct) : ''}</span></td>
+      <td>${r.ords.length ? r.ords.map(esc).join(', ') : '<span class="tag warn">BEZ OBJEDNÁVKY</span>'}</td></tr>`).join('')}</tbody>
+    <tfoot><tr><td colspan="2">Celkem (${trows.length} projektů)</td>${mWeeks.map((w, i) => `<td class="num">${fmt(trows.reduce((a, r) => a + r.wk[i], 0))}</td>`).join('')}
+      <td class="num">${fmt(mSum.t)}</td><td class="num">${mSum.t ? fmt(mSum.nh / mSum.t * 100, 0) : '–'} %</td><td class="num">${cov ? fmt(mSum.t / SHIFT_H / cov, 1) : '–'}</td><td class="num">${costKnown ? fmtKc(costKnown) : '–'}</td><td colspan="2"></td></tr></tfoot>
+  </table></div>
+  <p class="small muted">Sloupce CWxx obsahují jen dny daného měsíce (týden přes přelom měsíce je rozdělen). Klikni na hlavičku pro řazení.</p>`;
+}
+
+function hcCard(wk, pw){
+  const h = hcGet(wk), canHc = store.canWrite, ph = pw ? hcGet(pw) : null;
+  const inp = (f, v) => canHc ? `<input class="hcin big" type="number" min="0" step="1" inputmode="numeric" data-hcf="${f}" data-wk="${wk}" value="${v ?? ''}">` : `<span class="mono" style="font-size:1.4rem">${fmt(v, 1)}</span>`;
+  return `<div style="padding-top:.5rem">
+    <div class="row" style="justify-content:flex-end">
+      ${canHc && pw && (ph.t != null || hcpSum(pw) != null) ? `<button class="btn secondary sm" data-hccopy="${wk}">Převzít vše z ${cw(pw)}</button>` : ''}</div>
+    <div class="row" style="gap:1.5rem;align-items:flex-end">
+      ${HC_FIELDS.map(([k, l]) => `<label class="small muted" style="display:flex;flex-direction:column;gap:.2rem">${l}${inp(k, h[k])}</label>`).join('')}
+      <div><div class="small muted">Celkem</div><div class="mono" style="font-size:1.6rem">${fmt(h.t, 1)}</div></div>
+      ${ph && ph.t != null && h.t != null ? `<div><div class="small muted">vs. ${cw(pw)}</div><div class="mono" style="font-size:1.1rem">${fmt(ph.t, 1)} (${h.t - ph.t > 0 ? '+' : ''}${fmt(h.t - ph.t, 1)})</div></div>` : ''}
+    </div>
+    ${canHc ? '<p class="small muted" style="margin:.5rem 0 0">Support Q vyplní každý týden spolu s nahráním reportu z docházky. Ukládá se automaticky.</p>' : ''}
+  </div>`;
+}
+
+/* ---------- Aktuální kalendářní týden a stav reportu ---------- */
+const DAYS_CZ = ['neděle','pondělí','úterý','středa','čtvrtek','pátek','sobota'];
+function todayISO(){ const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`; }
+function nowStatus(){
+  const today = todayISO(), curWk = isoWeek(today), expWk = isoWeek(addDays(today, -7));
+  const full = weeksList().filter(w => weekCovered(w) === 7), lastFull = full.at(-1) || null;
+  const deadline = addDays(weekDates(curWk)[0], 1);               // úterý aktuálního týdne
+  const n = new Date(), afterDl = today > deadline || (today === deadline && n.getHours() >= 12);
+  let st;
+  if (lastFull && lastFull >= expWk) st = { cls:'good', txt:`Report za ${cw(expWk)} nahrán` };
+  else st = { cls: afterDl ? 'crit' : 'warn', txt: `Chybí report za ${cw(expWk)}${afterDl ? ' – po termínu' : ` – termín út ${fmtD(deadline)} 12:00`}` };
+  return { today, curWk, expWk, lastFull, st, dayName: DAYS_CZ[new Date(today + 'T12:00:00').getDay()] };
+}
+function renderNow(){
+  const n = nowStatus(), el = $('nowBox'); if (!el) return;
+  el.innerHTML = `<div class="nowbox"><div class="nb-cw">${cw(n.curWk)}</div><div class="nb-t"><b>Dnes ${n.dayName} ${fmtDY(n.today)}</b><span class="nb-st nb-${n.st.cls}">● ${n.st.txt}</span></div></div>`;
+}
+
+/* ---------- Přehled týdne: metriky, porovnání, sparkline ---------- */
+function weekMetrics(w){
+  const rows = allRows(), ds = new Set(weekDates(w)), wr = rows.filter(r => ds.has(r.d)), s = sum(wr);
+  const cov = weekCovered(w), h = hcGet(w);
+  const wkd = sum(wr.filter(r => dow(r.d) >= 5)).t;
+  const byP = {}; wr.forEach(r => byP[r.p] = (byP[r.p] || 0) + r.t);
+  return { w, cov, full: cov === 7, t: s.t, dh: s.dh, nh: s.nh, wkd, night: s.t ? s.nh / s.t : null,
+           hc: h.t, h, hpw: h.t ? s.t * 7 / (cov || 7) / h.t : null, proj: Object.values(byP).filter(v => v > 0).length };
+}
+/* lowerBetter = nižší hodnota je pro závod lepší (náklady) */
+function cmpMetric(cur, prev, comparable, lowerBetter = true, thr = RAG_PCT){
+  if (cur == null) return { cls:'neutral', label:'NEVYPLNĚNO', arrow:'', d:null, pct:null };
+  if (!comparable || prev == null) return { cls:'neutral', label:'NESROVNATELNÉ', arrow:'', d:null, pct:null };
+  const d = cur - prev, pct = prev ? d / prev : null;
+  const arrow = d > 0 ? '▲' : d < 0 ? '▼' : '■';
+  if (pct == null || Math.abs(pct) <= thr) return { cls:'warn', label:'BEZ ZMĚNY', arrow, d, pct };
+  const better = lowerBetter ? d < 0 : d > 0;
+  return { cls: better ? 'good' : 'crit', label: better ? 'LEPŠÍ' : 'HORŠÍ', arrow, d, pct };
+}
+function sparkline(vals, fulls, cls){
+  const W = 132, H = 34, pts = vals.map((v, i) => ({ v, i, f: fulls[i] })).filter(p => p.v != null);
+  if (pts.length < 2) return `<svg width="${W}" height="${H}"></svg>`;
+  const mx = Math.max(...pts.map(p => p.v)), mn = Math.min(...pts.map(p => p.v)), rng = mx - mn || 1;
+  const x = i => 4 + i * (W - 8) / Math.max(1, vals.length - 1), y = v => H - 5 - (v - mn) / rng * (H - 10);
+  const path = pts.map((p, k) => (k ? 'L' : 'M') + x(p.i).toFixed(1) + ' ' + y(p.v).toFixed(1)).join(' ');
+  const last = pts.at(-1), col = `var(--${cls === 'neutral' ? 'muted' : cls})`;
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true">
+    <path d="${path}" fill="none" stroke="var(--line)" stroke-width="2" stroke-linejoin="round"/>
+    ${pts.map(p => `<circle cx="${x(p.i)}" cy="${y(p.v)}" r="2.2" fill="${p.f ? 'var(--muted)' : 'var(--surface)'}" stroke="var(--muted)" stroke-width="1"/>`).join('')}
+    <circle cx="${x(last.i)}" cy="${y(last.v)}" r="4" fill="${col}"/></svg>`;
+}
+function kpiTile({ lbl, val, unit, c, prevTxt, spark, hint }){
+  const dTxt = c.d == null ? '' : `${c.arrow} ${c.d > 0 ? '+' : ''}${fmt(c.d, 1)}${unit ? ' ' + unit : ''}${c.pct != null ? ` <span>(${pct(c.pct, 1)})</span>` : ''}`;
+  return `<div class="kt kt-${c.cls}">
+    <div class="kt-top"><span class="kt-lbl">${lbl}</span><span class="kt-badge">${c.label}</span></div>
+    <div class="kt-val">${val}<small>${unit && val !== '–' ? ' ' + unit : ''}</small></div>
+    <div class="kt-delta">${dTxt || '&nbsp;'}</div>
+    <div class="kt-bot"><span class="kt-prev">${prevTxt}</span>${spark}</div>
+    ${hint ? `<div class="kt-hint">${hint}</div>` : ''}
+  </div>`;
+}
+function comboChart(wks){
+  const M = wks.map(weekMetrics);
+  const W = Math.max(720, wks.length * 78), H = 260, pad = { l:48, r:44, t:26, b:44 };
+  const max = Math.max(1, ...M.map(d => d.t)) * 1.15, hmax = Math.max(1, ...M.map(d => d.hc || 0)) * 1.6;
+  const bw = (W - pad.l - pad.r) / M.length, y = v => pad.t + (H - pad.t - pad.b) * (1 - v / max), yh = v => pad.t + (H - pad.t - pad.b) * (1 - v / hmax);
+  let g = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Hodiny a headcount po týdnech">`;
+  for (let i = 0; i <= 4; i++){ const v = max / 1.15 * i / 4; g += `<line x1="${pad.l}" x2="${W - pad.r}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-dasharray="${i ? '3 4' : ''}"/><text x="${pad.l - 8}" y="${y(v) + 4}" text-anchor="end">${fmt(v, 0)}</text>`; }
+  const cx = i => pad.l + i * bw + bw / 2;
+  M.forEach((d, i) => {
+    const w = Math.min(bw * .5, 46), x = cx(i) - w / 2, op = d.full ? 1 : .4;
+    g += `<g opacity="${op}"><rect x="${x}" y="${y(d.dh)}" width="${w}" height="${Math.max(0, y(0) - y(d.dh))}" fill="var(--navy)" rx="4"/>`;
+    g += `<rect x="${x}" y="${y(d.dh + d.nh)}" width="${w}" height="${Math.max(0, y(d.dh) - y(d.dh + d.nh))}" fill="var(--night)" rx="4"/></g>`;
+    g += `<text class="v" x="${cx(i)}" y="${y(d.t) - 7}" text-anchor="middle">${fmt(d.t, 0)}</text>`;
+    g += `<text x="${cx(i)}" y="${H - pad.b + 17}" text-anchor="middle" style="font-weight:600">${cw(d.w)}</text>`;
+    g += `<text x="${cx(i)}" y="${H - pad.b + 31}" text-anchor="middle">${d.full ? fmtD(weekDates(d.w)[0]) : d.cov + '/7 dní'}</text>`;
+  });
+  const hp = M.map((d, i) => d.hc != null ? [cx(i), yh(d.hc), d.hc] : null).filter(Boolean);
+  if (hp.length){
+    if (hp.length > 1) g += `<path d="${hp.map((p, k) => (k ? 'L' : 'M') + p[0] + ' ' + p[1]).join(' ')}" fill="none" stroke="var(--warn)" stroke-width="2.5"/>`;
+    hp.forEach(p => { g += `<circle cx="${p[0]}" cy="${p[1]}" r="5" fill="var(--surface)" stroke="var(--warn)" stroke-width="2.5"/><rect x="${p[0] + 10}" y="${p[1] - 9}" width="${String(fmt(p[2], 0)).length * 8 + 40}" height="18" rx="9" fill="var(--surface)" stroke="var(--warn)"/><text class="v" x="${p[0] + 18}" y="${p[1] + 4}" style="fill:var(--warn);font-weight:600">${fmt(p[2], 0)} os.</text>`; });
+  }
+  return g + '</svg>';
+}
+
+const trendWeeks = () => { const w = weeksList(); while (w.length > 1 && weekCovered(w[0]) < 4) w.shift(); return w; };
+function renderTrend(){
+  const el = $('trendBody');
+  const wksAll = trendWeeks();
+  if (!wksAll.length){ el.innerHTML = emptyState('Zatím žádná data. Support Q nahraje týdenní report z docházky v sekci Import.'); return; }
+  const rows = allRows();
+  if (!UI.trendWk || !wksAll.includes(UI.trendWk)) UI.trendWk = wksAll.filter(w => weekCovered(w) === 7).at(-1) || wksAll.at(-1);
+  const wk = UI.trendWk, idx = wksAll.indexOf(wk), pw = idx > 0 ? wksAll[idx - 1] : null;
+  const wks = wksAll.slice(0, idx + 1).slice(-10), spW = wksAll.slice(0, idx + 1).slice(-8);
+  const C = weekMetrics(wk), P = pw ? weekMetrics(pw) : null;
+  const comp = !!(P && C.full && P.full);
+  const SM = spW.map(weekMetrics), fulls = SM.map(m => m.full);
+  const sp = (f, cls) => sparkline(SM.map(f), fulls, cls);
+
+  const cT = cmpMetric(C.t, P && P.t, comp);
+  const cHC = cmpMetric(C.hc, P && P.hc, !!(P && P.hc != null));
+  const cHP = cmpMetric(C.hpw, P && P.hpw, comp && C.hpw != null && P.hpw != null);
+  if (cHP.label === 'NESROVNATELNÉ' && C.hpw != null){ const a = hcRag(C.hpw); cHP.cls = a.cls; cHP.label = a.label; }
+  const first = !P;
+  const cN = cmpMetric(C.night != null ? C.night * 100 : null, P && P.night != null ? P.night * 100 : null, comp);
+  const cW = cmpMetric(C.wkd, P && P.wkd, comp);
+  // projekty s nárůstem > 5 %
+  const projs = [...new Set(rows.filter(r => weekDates(wk).includes(r.d) || (pw && weekDates(pw).includes(r.d))).map(r => r.p))];
+  const mv = projs.map(p => { const pr = rows.filter(r => r.p === p); const a = weekSum(pr, wk).t, b = pw ? weekSum(pr, pw).t : 0; return { p, a, b, d: a - b, pct: b ? (a - b) / b : null }; });
+  const up = comp ? mv.filter(x => x.d > 0 && (x.pct == null || x.pct > RAG_PCT)) : [];
+  const upPrev = (() => { const ppw = idx > 1 ? wksAll[idx - 2] : null; if (!ppw || !P || !P.full || weekCovered(ppw) < 7) return null;
+    return projs.filter(p => { const pr = rows.filter(r => r.p === p); const a = weekSum(pr, pw).t, b = weekSum(pr, ppw).t; return a - b > 0 && (!b || (a - b) / b > RAG_PCT); }).length; })();
+  const cUp = comp ? cmpMetric(up.length, upPrev, upPrev != null, true, 0) : cmpMetric(up.length, null, false);
+  if (!P) cUp.label = 'PRVNÍ TÝDEN';
+  if (comp && upPrev == null){ cUp.label = up.length ? up.length + ' ROSTE' : 'NIC NEROSTE'; cUp.cls = up.length ? 'crit' : 'good'; }
+
+  if (first) [cT, cHC, cN, cW].forEach(c => { if (c.label === 'NESROVNATELNÉ') c.label = 'PRVNÍ TÝDEN'; });
+  const tiles = [
+    kpiTile({ lbl:'Hodiny celkem', val: fmt(C.t), unit:'h', c:cT, prevTxt: P ? `${cw(pw)}: ${fmt(P.t)} h${P.full ? '' : ' (neúplný)'}` : '', spark: sp(m => m.full ? m.t : null, cT.cls), hint: `den ${fmt(C.dh)} · noc ${fmt(C.nh)}` }),
+    kpiTile({ lbl:'Headcount', val: C.hc != null ? fmt(C.hc, 1) : '–', unit:'os.', c:cHC, prevTxt: P && P.hc != null ? `${cw(pw)}: ${fmt(P.hc, 1)} os.` : (P ? 'předch. týden nevyplněn' : ''), spark: sp(m => m.hc, cHC.cls), hint: C.hc != null ? HC_FIELDS.map(([k, l]) => `${l.split(' ')[0].toLowerCase()} ${fmt(C.h[k], 1)}`).join(' · ') : 'vyplň níže' }),
+    kpiTile({ lbl:'Hodin na osobu / týden', val: C.hpw != null ? fmt(C.hpw, 1) : '–', unit:'h', c:cHP, prevTxt: P && P.hpw != null ? `${cw(pw)}: ${fmt(P.hpw, 1)} h` : '', spark: sp(m => m.full ? m.hpw : null, cHP.cls), hint: C.hpw != null ? `${hcRag(C.hpw).label} · norma 12h modelu Ø ${HC_NORM} h` : '' }),
+    kpiTile({ lbl:'Podíl nočních hodin', val: C.night != null ? fmt(C.night * 100, 1) : '–', unit:'%', c:cN, prevTxt: P && P.night != null ? `${cw(pw)}: ${fmt(P.night * 100, 1)} %` : '', spark: sp(m => m.full && m.night != null ? m.night * 100 : null, cN.cls), hint: 'noční příplatky zvyšují náklad' }),
+    kpiTile({ lbl:'Víkendové hodiny', val: fmt(C.wkd), unit:'h', c:cW, prevTxt: P ? `${cw(pw)}: ${fmt(P.wkd)} h` : '', spark: sp(m => m.full ? m.wkd : null, cW.cls), hint: C.t ? `${fmt(C.wkd / C.t * 100, 0)} % hodin týdne` : '' }),
+    kpiTile({ lbl:'Projekty s nárůstem >5 %', val: comp ? String(up.length) : '–', unit:'', c:cUp, prevTxt: `aktivních projektů: ${C.proj}${P ? ` (${cw(pw)}: ${P.proj})` : ''}`, spark:'', hint: up.length ? up.sort((a, b) => b.d - a.d).slice(0, 3).map(x => x.p).join(', ') + (up.length > 3 ? '…' : '') : '' })
+  ];
+  const cs = [cT, cHC, cHP, cN, cW];
+  const nBad = cs.filter(c => c.cls === 'crit').length, nGood = cs.filter(c => c.cls === 'good').length;
+  const verdict = !comp && cHC.cls === 'neutral'
+    ? { cls:'neutral', t: P ? 'Porovnání zatím není možné' : 'První týden v reportingu', s: P ? `${cw(pw)} není v datech celý – srovnání bude od příštího úplného týdne.` : `Porovnání s předchozím týdnem se objeví po nahrání ${cw(isoWeek(addDays(weekDates(wk)[0], 7)))}.` }
+    : nBad > nGood ? { cls:'crit', t:`Zhoršení proti ${cw(pw)}`, s:`${nBad} ${nBad === 1 ? 'metrika horší' : 'metriky horší'}, ${nGood} lepší` }
+    : nGood > nBad ? { cls:'good', t:`Zlepšení proti ${cw(pw)}`, s:`${nGood} ${nGood === 1 ? 'metrika lepší' : 'metriky lepší'}, ${nBad} horší` }
+    : { cls:'warn', t:`Beze změny proti ${cw(pw)}`, s:`${nGood} lepší · ${nBad} horší` };
+
+  const inc = mv.filter(x => x.d > 0).sort((a, b) => b.d - a.d).slice(0, 5), dec = mv.filter(x => x.d < 0).sort((a, b) => a.d - b.d).slice(0, 5);
+  const mmax = Math.max(1, ...inc.concat(dec).map(x => Math.abs(x.d)));
+  const mvRow = (x, cls) => `<div class="mv"><div class="mv-l"><b class="mono">${esc(x.p)}</b><span>${esc(pname(x.p))}</span></div>
+      <div class="mv-bar"><i class="${cls}" style="width:${(Math.abs(x.d) / mmax * 100).toFixed(1)}%"></i></div>
+      <div class="mv-v mono">${x.d > 0 ? '+' : ''}${fmt(x.d)} h<small>${fmt(x.b)} → ${fmt(x.a)}</small></div></div>`;
+
+  // tabulka projektů
+  const tprojs = [...new Set(rows.filter(r => wks.some(w => weekDates(w).includes(r.d))).map(r => r.p))];
+  const lines = tprojs.map(p => {
+    const pr = rows.filter(r => r.p === p), v = wks.map(w => weekSum(pr, w).t), n = wks.map(w => hcpOf(w, p));
+    const hNow = weekSum(pr, wk).t, nNow = hcpOf(wk, p), hpp = nNow ? hNow * 7 / (C.cov || 7) / nNow : null;
+    const c1 = hNow, c0 = pw ? weekSum(pr, pw).t : null;
+    return { p, v, n, nNow, hpp, hr: nNow ? hcRag(hpp) : (hNow > 0 ? { cls:'warn', label:'DOPLNIT' } : { cls:'neutral', label:'–' }),
+             d: comp ? c1 - c0 : null, rg: comp ? rag(c1, c0) : rag(0, null), c1 };
+  }).sort((a, b) => b.c1 - a.c1);
+  const hcFilled = C.hc != null;
+  const hcRow = (label, f) => `<tr><td colspan="5">${label}</td>${wks.map(w => { const v = f(hcGet(w), w); return `<td class="num">${v == null ? '<span class="muted">–</span>' : fmt(v, 1)}</td>`; }).join('')}<td colspan="2"></td></tr>`;
+
+  const demo = META.demo;
+  el.innerHTML = `
+  ${demo ? `<div class="critbox" style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap"><div><b>UKÁZKOVÁ DATA</b> – období ${fmtD(demo.from)}–${fmtDY(demo.to)} (${esc(demo.label || '')}) obsahuje fiktivní hodiny a headcount jen pro ukázku přehledu. Skutečná data začínají ${fmtDY(addDays(demo.to, 1))}.</div>${store.canWrite ? '<button class="btn danger sm" id="demoDel">Smazat ukázková data</button>' : ''}</div>` : ''}
+  <div class="chips">${wksAll.slice(-12).map(w => `<button class="chip ${w === wk ? 'active' : ''}" data-twk="${w}">${cw(w)}<span class="d">${fmtD(weekDates(w)[0])}${weekCovered(w) < 7 ? ' · ' + weekCovered(w) + '/7' : ''}</span></button>`).join('')}</div>
+  <div class="verdict v-${verdict.cls}">
+    <div><div class="v-wk">${cw(wk)} · ${fmtD(weekDates(wk)[0])}–${fmtDY(weekDates(wk)[6])}${C.full ? '' : ` · neúplný (${C.cov}/7 dní)`}</div><div class="v-t">${verdict.t}</div></div>
+    <div class="v-s">${verdict.s}</div>
+  </div>
+  <div class="kt-grid">${tiles.join('')}</div>
+  <p class="small muted" style="margin:.1rem 0 1rem">Porovnání s předchozím týdnem: LEPŠÍ / HORŠÍ = změna o více než ±5 %, u všech metrik je nižší hodnota pro závod lepší. Mini-graf = posledních ${spW.length} týdnů, prázdné body = neúplný týden.</p>
+
+  <details class="card hc-card" ${hcFilled && !UI.hcOpen ? '' : 'open'}>
+    <summary><b>Headcount ${cw(wk)}</b> ${hcFilled ? `<span class="muted small">· celkem ${fmt(C.hc, 1)} · klikni pro úpravu</span>` : '<span class="tag warn">NEVYPLNĚNO</span>'}</summary>
+    ${hcCard(wk, pw)}
+  </details>
+
+  ${!P ? '' : `<div class="two">
+    <div class="card"><h2>📈 Největší nárůsty hodin</h2>${!comp ? '<p class="muted small">Porovnání jen mezi dvěma úplnými týdny.</p>' : inc.length ? inc.map(x => mvRow(x, 'crit')).join('') : '<p class="muted small">Žádný projekt nevzrostl.</p>'}</div>
+    <div class="card"><h2>📉 Největší poklesy hodin</h2>${!comp ? '<p class="muted small">Porovnání jen mezi dvěma úplnými týdny.</p>' : dec.length ? dec.map(x => mvRow(x, 'good')).join('') : '<p class="muted small">Žádný projekt neklesl.</p>'}</div>
+  </div>`}
+
+  <div class="card chart" style="margin-top:1rem"><h2>Hodiny a headcount po týdnech</h2>
+    <div class="legend"><span><i style="background:var(--navy)"></i>denní hodiny</span><span><i style="background:var(--night)"></i>noční hodiny</span><span><i style="background:var(--warn);border-radius:50%"></i>headcount</span><span>světlejší sloupec = neúplný týden</span></div>
+    <div style="overflow-x:auto">${comboChart(wks)}</div></div>
+
+  <h2 style="margin-top:1.25rem">Projekty – hodiny a lidé po týdnech</h2>
+  <div class="tbl-wrap" style="max-height:none"><table class="multi-foot">
+    <thead><tr><th>Projekt</th><th>Popis</th><th class="num">Lidí ${cw(wk)}</th><th class="num">h/os</th><th>Vytížení</th>${wks.map(w => `<th class="num">${cw(w)}${weekCovered(w) < 7 ? '*' : ''}<div style="font-weight:400;text-transform:none">h · lidí</div></th>`).join('')}<th class="num">Δ h</th><th>Trend</th></tr></thead>
+    <tbody>${lines.map(l => `<tr><td class="mono">${esc(l.p)}</td><td class="desc">${esc(pname(l.p))}</td>
+      <td class="num">${store.canWrite ? `<input class="hcin" type="number" min="0" step="0.5" inputmode="decimal" data-hcp="${esc(l.p)}" data-wk="${wk}" data-h="${l.c1 * 7 / (C.cov || 7)}" value="${l.nNow ?? ''}" aria-label="Počet lidí ${esc(l.p)}">` : fmt(l.nNow, 1)}</td>
+      <td class="num">${fmt(l.hpp, 1)}</td><td><span class="tag ${l.hr.cls}">${l.hr.label}</span></td>
+      ${l.v.map((v, j) => `<td class="num ${v ? '' : 'zero'}">${fmt(v)}${l.n[j] != null ? `<div class="small muted">${fmt(l.n[j], 1)} lidí</div>` : ''}</td>`).join('')}
+      <td class="num">${l.d != null ? (l.d > 0 ? '+' : '') + fmt(l.d) : '–'}</td>
+      <td><span class="tag ${l.rg.cls}">${l.rg.label}</span> <span class="mono small">${l.rg.pct != null ? pct(l.rg.pct) : ''}</span></td></tr>`).join('')}</tbody>
+    <tfoot>
+      <tr><td colspan="2">Hodiny celkem</td><td class="num">${fmt(hcpSum(wk), 1)}</td><td colspan="2" class="small muted">součet lidí na projektech</td>${wks.map(w => `<td class="num">${fmt(weekSum(rows, w).t)}${hcpSum(w) != null ? `<div class="small muted">${fmt(hcpSum(w), 1)} lidí</div>` : ''}</td>`).join('')}<td class="num">${comp ? (C.t - P.t > 0 ? '+' : '') + fmt(C.t - P.t) : '–'}</td><td><span class="tag ${comp ? rag(C.t, P.t).cls : 'neutral'}">${comp ? rag(C.t, P.t).label : '–'}</span></td></tr>
+      ${HC_FIELDS.map(([k, l]) => hcRow(l, h => h[k])).join('')}
+      ${hcRow('Headcount celkem', h => h.t)}
+      ${hcRow('Hodin na osobu', (h, w) => h.t ? weekSum(rows, w).t * 7 / (weekCovered(w) || 7) / h.t : null)}
+    </tfoot>
+  </table></div>
+  ${hcLegend()}
+  <p class="small muted">Lidí na projektu vyplňuje Support Q; kdo pracuje na dvou projektech, zapíše se poměrně (0,5 + 0,5). * = neúplný týden.</p>`;
+}
+
+/* ===================== Report pro Plant Managera ===================== */
+function buildReport(wk){
+  const rows = allRows(), wksAll = weeksList(), i = wksAll.indexOf(wk), pw = i > 0 ? wksAll[i - 1] : null;
+  const ds = weekDates(wk), covW = weekCovered(wk) || 7, scale = 7 / covW;
+  const s = weekSum(rows, wk), sp = pw ? weekSum(rows, pw) : null;
+  const both = weekCovered(wk) === 7 && pw && weekCovered(pw) === 7;
+  const R = both ? rag(s.t, sp.t) : rag(0, null);
+  const h = hcGet(wk), hp = pw ? hcGet(pw) : null;
+  const hpw = h.t ? s.t * scale / h.t : null, HR = hcRag(hpw);
+  const imp = [...META.imports].reverse().find(x => x.type === 'hours' && x.from <= ds[6] && x.to >= ds[0]);
+  const projs = [...new Set(rows.filter(r => ds.includes(r.d) || (pw && weekDates(pw).includes(r.d))).map(r => r.p))];
+  const P = projs.map(p => {
+    const pr = rows.filter(r => r.p === p), a = weekSum(pr, wk), b = pw ? weekSum(pr, pw) : null;
+    const n = hcpOf(wk, p), hpp = n ? a.t * scale / n : null;
+    const rg = both ? rag(a.t, b.t) : rag(0, null);
+    const st = n ? hcRag(hpp) : (a.t > 0 ? { cls:'warn', label:'DOPLNIT' } : { cls:'neutral', label:'–' });
+    return { p, desc: pname(p), t: a.t, dh: a.dh, nh: a.nh, tp: b ? b.t : null, d: b ? a.t - b.t : null, pct: rg.pct, trend: rg.label, n, hpp, st: st.label };
+  }).sort((x, y) => y.t - x.t);
+  const range = `${fmtD(ds[0])}–${fmtDY(ds[6])}`;
+  const sgn = v => v == null ? '–' : (v > 0 ? '+' : '') + fmt(v);
+  const subject = `Support Q – týdenní report ${cw(wk)} (${range})`;
+  const flagged = P.filter(x => ['OVĚŘIT','PŘESČAS','DOPLNIT'].includes(x.st));
+  const over = P.filter(x => x.st === 'OVĚŘIT' || x.st === 'PŘESČAS').sort((a, b) => b.hpp - a.hpp);
+  const noN = P.filter(x => x.st === 'DOPLNIT');
+  const withN = P.filter(x => x.n);
+  const top = P.slice(0, 10);
+  const impTxt = imp ? (imp.chk === true ? 'OK ✓' : imp.chk === false ? 'NESEDÍ ✗' : 'neověřen') : 'import nenalezen';
+  const L = [];
+  const SEP = '────────────────────────────────────────';
+  L.push(`SUPPORT Q – TÝDENNÍ REPORT ${cw(wk)}`, `${range}`, SEP, '');
+  L.push('▶ SOUHRN');
+  L.push(`   Hodiny celkem:      ${fmt(s.t)} h   (den ${fmt(s.dh)} / noc ${fmt(s.nh)})${covW < 7 ? `  – neúplný týden ${covW}/7 dní` : ''}`);
+  L.push(`   Proti ${cw(pw || wk)}:        ${both ? `${sgn(s.t - sp.t)} h  (${pct(R.pct, 1)})  ${R.label}` : 'nesrovnatelné – předchozí týden není v datech celý'}`);
+  L.push(`   Headcount:          ${h.t != null ? fmt(h.t, 1) + ' osob' : 'NEVYPLNĚNO'}${hp && hp.t != null && h.t != null ? `  (${sgn(h.t - hp.t)} proti ${cw(pw)})` : ''}`);
+  if (h.t != null) L.push(`                       ${HC_FIELDS.map(([k, l]) => `${l.toLowerCase()} ${fmt(h[k], 1)}`).join(' · ')}`);
+  L.push(`   Hodin na osobu:     ${hpw != null ? fmt(hpw, 1) + ' h/týden  ' + HR.label : '–'}   (12h model Ø ${HC_NORM} h)`);
+  L.push(`   Kontrola „Sumar“:   ${impTxt}`);
+  L.push('', `▶ TOP ${top.length} PROJEKTŮ PODLE HODIN`);
+  top.forEach((x, i) => L.push(`   ${String(i + 1).padStart(2)}. ${x.p}  ${x.desc}`, `       ${fmt(x.t)} h${both && x.d != null ? `  (${sgn(x.d)} h)` : ''}${x.n ? `  ·  ${fmt(x.n, 1)} os.  ·  ${fmt(x.hpp, 1)} h/os  ·  ${x.st}` : ''}`));
+  L.push('', '▶ K VYSVĚTLENÍ');
+  if (!withN.length) L.push('   Nelze vyhodnotit – u projektů chybí počet lidí.');
+  else if (!over.length) L.push('   Žádný projekt nad 48 h na osobu.');
+  else over.forEach(x => L.push(`   • ${x.p}  ${x.desc}: ${fmt(x.hpp, 1)} h/os (${fmt(x.t)} h / ${fmt(x.n, 1)} os.)  ${x.st}`));
+  if (noN.length) L.push('', `▶ CHYBÍ POČET LIDÍ (${noN.length} projektů)`, '   ' + noN.map(x => x.p).join(', '));
+  if (META.demo) L.push('', `POZOR: ${fmtD(META.demo.from)}–${fmtDY(META.demo.to)} jsou ukázková (fiktivní) data.`);
+  L.push('', SEP, 'Podrobný přehled v příloze (Excel / CSV).');
+  const text = L.join('\n');
+  return { wk, pw, ds, s, sp, R, h, hp, hpw, HR, imp, impTxt, P, over, noN, withN, both, covW, subject, text, range };
+}
+function reportHtml(r){
+  /* Outlook-safe: pevná šířka, tabulky, bgcolor, barvy přímo na textu */
+  const NAVY = '#003B7A', LINE = '#D9E0E8', MUT = '#5C6B7A', SOFT = '#EEF3F9';
+  const col = { 'V MODELU':'#1A9963', 'PŘESČAS':'#C07F00', 'OVĚŘIT':'#D24842', 'ROSTE':'#D24842', 'KLESÁ':'#1A9963', 'STABILNÍ':'#C07F00' };
+  const F = 'font-family:Calibri,Segoe UI,Arial,sans-serif;';
+  const T = (txt, sz, c, b) => `<span style="${F}font-size:${sz}pt;color:${c || '#1B2430'};${b ? 'font-weight:bold;' : ''}">${txt}</span>`;
+  const st = lbl => lbl && col[lbl] ? T(lbl, 10, col[lbl], true) : '';
+  const sgn = v => v == null ? '–' : (v > 0 ? '+' : '') + fmt(v);
+  const W = 640;
+  const kv = (k, v) => `<tr><td width="170" style="${F}padding:6px 10px;border-bottom:1px solid ${LINE};">${T(k, 10, MUT)}</td><td style="${F}padding:6px 10px;border-bottom:1px solid ${LINE};">${v}</td></tr>`;
+  const hasN = r.withN.length > 0;
+  const Pm = r.pw ? weekMetrics(r.pw) : null, Cm = weekMetrics(r.wk), compF = !!(Pm && Cm.full && Pm.full);
+  const dl = (c, unit, d1) => c.d == null ? '' : ' ' + T(`${c.arrow} ${c.d > 0 ? '+' : ''}${fmt(c.d, d1)} ${unit} · ${c.label}`, 9, c.cls === 'good' ? '#1A9963' : c.cls === 'crit' ? '#D24842' : '#C07F00', true);
+  const cHCm = cmpMetric(Cm.hc, Pm && Pm.hc, !!(Pm && Pm.hc != null)), cHPm = cmpMetric(Cm.hpw, Pm && Pm.hpw, compF && Cm.hpw != null && Pm.hpw != null);
+  const top = r.P.filter(x => x.t > 0).slice(0, 10), rest = r.P.filter(x => x.t > 0).slice(10);
+  const restT = rest.reduce((a, x) => a + x.t, 0);
+  const th = (t, al) => `<td bgcolor="#DCE6F2" align="${al || 'left'}" style="${F}padding:6px 8px;border-bottom:2px solid ${NAVY};">${T(t, 9, NAVY, true)}</td>`;
+  const td = (t, al, bg) => `<td ${bg ? `bgcolor="${bg}"` : ''} align="${al || 'left'}" style="${F}padding:5px 8px;border-bottom:1px solid ${LINE};">${t}</td>`;
+  const row = (x, i) => { const bg = i % 2 ? '#F7F9FB' : ''; return `<tr>${td(T(esc(x.p), 10, '#1B2430', true), 'left', bg)}${td(T(esc(x.desc), 10, MUT), 'left', bg)}${td(T(fmt(x.t), 10, '#1B2430', true), 'right', bg)}${r.both ? td(T(sgn(x.d), 10, x.d > 0 ? '#D24842' : x.d < 0 ? '#1A9963' : MUT), 'right', bg) : ''}${hasN ? td(T(x.n ? fmt(x.n, 1) : '–', 10), 'right', bg) + td(x.n ? T(fmt(x.hpp, 1), 10) + ' ' + st(x.st) : T('–', 10, MUT), 'right', bg) : ''}</tr>`; };
+  const nCols = 3 + (r.both ? 1 : 0) + (hasN ? 2 : 0);
+  const hcLine = r.h.t != null
+    ? T(fmt(r.h.t, 1) + ' osob', 11, '#1B2430', true) + dl(cHCm, 'os.', 1) + '<br>' + T(HC_FIELDS.map(([k, l]) => `${l.toLowerCase()} ${fmt(r.h[k], 1)}`).join(' · '), 9, MUT)
+    : T('nevyplněno', 11, '#C07F00', true);
+  const explain = !hasN ? '' : r.over.length
+    ? `<table width="${W}" cellpadding="0" cellspacing="0" style="margin-top:14px;"><tr><td style="${F}padding:0 2px 4px;">${T('K vysvětlení', 12, NAVY, true)}</td></tr>
+       ${r.over.map(x => `<tr><td style="${F}padding:3px 2px;">${st(x.st)} ${T(`<b>${esc(x.p)}</b> ${esc(x.desc)} – ${fmt(x.hpp, 1)} h/os (${fmt(x.t)} h / ${fmt(x.n, 1)} os.)`, 10)}</td></tr>`).join('')}</table>`
+    : `<p style="${F}margin:12px 2px 0;">${T('Žádný projekt nad ' + HC_WARN + ' h na osobu.', 10, '#1A9963')}</p>`;
+  return `<table width="${W}" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+  <tr><td bgcolor="${NAVY}" width="6" style="font-size:1px;">&nbsp;</td><td bgcolor="#DCE6F2" style="${F}padding:10px 14px;">${T('Support Q – týdenní report ' + cw(r.wk), 15, NAVY, true)}<br>${T(r.range + (r.covW < 7 ? ` · neúplný týden (${r.covW}/7 dní)` : ''), 10, '#1B2430')}</td></tr></table>
+<table width="${W}" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid ${LINE};margin-top:10px;">
+  ${kv('Hodiny celkem', T(fmt(r.s.t) + ' h', 12, '#1B2430', true) + '  ' + T(`(den ${fmt(r.s.dh)} / noc ${fmt(r.s.nh)})`, 9, MUT))}
+  ${kv('Změna vs. ' + (r.pw ? cw(r.pw) : 'předch. týden'), r.both ? T(`${sgn(r.s.t - r.sp.t)} h (${pct(r.R.pct, 1)})`, 11, '#1B2430', true) + ' ' + st(r.R.label) : T('nesrovnatelné – předchozí týden není celý', 10, MUT))}
+  ${kv('Headcount', hcLine)}
+  ${kv('Hodin na osobu', r.hpw != null ? T(fmt(r.hpw, 1) + ' h/týden', 11, '#1B2430', true) + ' ' + st(r.HR.label) + dl(cHPm, 'h', 1) + '<br>' + T('norma 12h modelu Ø ' + HC_NORM + ' h', 9, MUT) : T('–', 10, MUT))}
+  ${kv('Kontrola „Sumar“', T(r.impTxt, 10, r.imp && r.imp.chk === true ? '#1A9963' : r.imp && r.imp.chk === false ? '#D24842' : MUT, true))}
+</table>
+${explain}
+<table width="${W}" cellpadding="0" cellspacing="0" style="margin-top:14px;"><tr><td style="${F}padding:0 2px 4px;">${T('TOP ' + top.length + ' projektů podle hodin', 12, NAVY, true)}</td></tr></table>
+<table width="${W}" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid ${LINE};">
+  <tr>${th('Projekt')}${th('Popis')}${th('Hodiny', 'right')}${r.both ? th('Δ h', 'right') : ''}${hasN ? th('Lidí', 'right') + th('h/os', 'right') : ''}</tr>
+  ${top.map(row).join('')}
+  ${rest.length ? `<tr>${td(T(`Ostatní (${rest.length})`, 10, MUT))}${td('')}${td(T(fmt(restT), 10, MUT), 'right')}${'<td></td>'.repeat(nCols - 3)}</tr>` : ''}
+  <tr>${td(T('Celkem', 10, '#1B2430', true), 'left', SOFT)}${td('', 'left', SOFT)}${td(T(fmt(r.s.t), 10, '#1B2430', true), 'right', SOFT)}${r.both ? td(T(sgn(r.s.t - r.sp.t), 10, '#1B2430', true), 'right', SOFT) : ''}${hasN ? td(T(hcpSum(r.wk) != null ? fmt(hcpSum(r.wk), 1) : '–', 10, '#1B2430', true), 'right', SOFT) + td(T(r.hpw != null ? fmt(r.hpw, 1) : '–', 10, '#1B2430', true), 'right', SOFT) : ''}</tr>
+</table>
+${!hasN ? `<p style="${F}margin:8px 2px 0;">${T('Počty lidí na projektech nejsou vyplněné – hodiny na osobu po projektech nelze vyhodnotit.', 9, '#C07F00')}</p>` : r.noN.length ? `<p style="${F}margin:8px 2px 0;">${T(`Chybí počet lidí u ${r.noN.length} projektů: ${r.noN.map(x => x.p).join(', ')}`, 9, '#C07F00')}</p>` : ''}
+${META.demo ? `<p style="${F}margin:10px 2px 0;">${T(`POZOR: ${fmtD(META.demo.from)}–${fmtDY(META.demo.to)} jsou ukázková (fiktivní) data.`, 9, '#D24842', true)}</p>` : ''}
+<p style="${F}margin:10px 2px 0;">${T('Kompletní přehled všech projektů je v příloze (Excel).', 9, MUT)}</p>`;
+}
+function b64utf8(str){ return btoa(unescape(encodeURIComponent(str))); }
+function b64bytes(u8){ let b = ''; const c = 0x8000; for (let i = 0; i < u8.length; i += c) b += String.fromCharCode.apply(null, u8.subarray(i, i + c)); return btoa(b); }
+const wrap76 = x => x.replace(/.{1,76}/g, '$&\r\n');
+async function buildEml(r){
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:12px;background:#F5F7FA">${reportHtml(r)}</body></html>`;
+  let att = null;
+  try { const XLSX = await getXLSX(); att = { name:`SupportQ_report_${cw(r.wk)}_${r.wk.slice(0,4)}.xlsx`, type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', data: b64bytes(new Uint8Array(xlsxBytes(XLSX, r))) }; }
+  catch(e){ const csv = reportCsvText(r); att = { name:`SupportQ_report_${cw(r.wk)}_${r.wk.slice(0,4)}.csv`, type:'text/csv; charset=utf-8', data: b64utf8(csv) }; }
+  const B = 'sqb' + Date.now().toString(36), A = 'sqa' + Date.now().toString(36);
+  const encH = t => '=?UTF-8?B?' + b64utf8(t) + '?=';
+  const parts = [
+    `To: ${META.pmEmail || PM_EMAIL_DEFAULT}`, `Subject: ${encH(r.subject)}`, 'X-Unsent: 1', 'MIME-Version: 1.0', `Content-Type: multipart/mixed; boundary="${B}"`, '',
+    `--${B}`, `Content-Type: multipart/alternative; boundary="${A}"`, '',
+    `--${A}`, 'Content-Type: text/plain; charset=utf-8', 'Content-Transfer-Encoding: base64', '', wrap76(b64utf8(r.text)),
+    `--${A}`, 'Content-Type: text/html; charset=utf-8', 'Content-Transfer-Encoding: base64', '', wrap76(b64utf8(html)),
+    `--${A}--`, '',
+    `--${B}`, `Content-Type: ${att.type}; name="${att.name}"`, 'Content-Transfer-Encoding: base64', `Content-Disposition: attachment; filename="${att.name}"`, '', wrap76(att.data),
+    `--${B}--`, ''
+  ];
+  return parts.join('\r\n');
+}
+function reportSheets(r){
+  const rows = allRows(), wksAll = weeksList(), wks = wksAll.slice(0, wksAll.indexOf(r.wk) + 1).slice(-10);
+  const n1 = v => v == null ? '' : Math.round(v * 10) / 10;
+  const souhrn = [
+    ['Support Q – týdenní report', cw(r.wk)], ['Období', r.range], [],
+    ['Hodiny celkem', n1(r.s.t)], ['z toho denní', n1(r.s.dh)], ['z toho noční', n1(r.s.nh)],
+    ['Hodiny předchozí týden' + (r.pw ? ' (' + cw(r.pw) + ')' : ''), r.sp ? n1(r.sp.t) : ''],
+    ['Změna h', r.sp ? n1(r.s.t - r.sp.t) : ''], ['Změna %', r.R.pct != null ? Math.round(r.R.pct * 1000) / 10 : ''], ['Trend', r.R.label], [],
+    ...HC_FIELDS.map(([k, l]) => [l, n1(r.h[k])]), ['Headcount celkem', n1(r.h.t)],
+    ['Hodin na osobu / týden', n1(r.hpw)], ['Vytížení', r.HR.label], ['Norma 12h modelu (h/týden)', HC_NORM], [],
+    ['Kontrolní součet Sumar', r.imp ? (r.imp.chk === true ? 'OK' : r.imp.chk === false ? 'NESEDÍ' : 'neověřen') : ''], ['Zdrojový soubor', r.imp ? r.imp.file : ''],
+    ['Vytvořeno', new Date().toLocaleString('cs-CZ')]
+  ];
+  const projekty = [['Projekt','Popis', 'Hodiny ' + cw(r.wk), 'Denní h', 'Noční h', 'Hodiny ' + (r.pw ? cw(r.pw) : 'předch.'), 'Změna h', 'Změna %', 'Trend', 'Lidí', 'h/os', 'Vytížení']]
+    .concat(r.P.map(x => [x.p, x.desc, n1(x.t), n1(x.dh), n1(x.nh), n1(x.tp), n1(x.d), x.pct != null ? Math.round(x.pct * 1000) / 10 : '', x.trend, n1(x.n), n1(x.hpp), x.st]));
+  const projs = [...new Set(rows.filter(q => wks.some(w => weekDates(w).includes(q.d))).map(q => q.p))].sort();
+  const trend = [['Projekt','Popis', ...wks.flatMap(w => [cw(w) + ' h', cw(w) + ' lidí'])]]
+    .concat(projs.map(p => { const pr = rows.filter(q => q.p === p); return [p, pname(p), ...wks.flatMap(w => [n1(weekSum(pr, w).t), n1(hcpOf(w, p))])]; }))
+    .concat([['Celkem', '', ...wks.flatMap(w => [n1(weekSum(rows, w).t), n1(hcpSum(w))])]]);
+  const hc = [['Týden', ...HC_FIELDS.map(([, l]) => l), 'Headcount celkem', 'Hodiny', 'Hodin na osobu']]
+    .concat(wks.map(w => { const h = hcGet(w), t = weekSum(rows, w).t; return [cw(w), ...HC_FIELDS.map(([k]) => n1(h[k])), n1(h.t), n1(t), h.t ? n1(t * 7 / (weekCovered(w) || 7) / h.t) : '']; }));
+  const dset = new Set(r.ds);
+  const data = [['Datum','Projekt','Popis','Denní h','Noční h','Celkem h']]
+    .concat(rows.filter(q => dset.has(q.d)).sort((a, b) => a.d.localeCompare(b.d) || a.p.localeCompare(b.p)).map(q => [fmtDY(q.d).replace(/ /g, ''), q.p, pname(q.p), n1(q.dh), n1(q.nh), n1(q.t)]));
+  return [['Souhrn', souhrn], ['Projekty ' + cw(r.wk), projekty], ['Trend týdnů', trend], ['Headcount', hc], ['Data po dnech', data]];
+}
+function xlsxBytes(XLSX, r){
+  const wb = XLSX.utils.book_new();
+  for (const [name, aoa] of reportSheets(r)){
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = (aoa[0] || []).map((_, j) => ({ wch: j === 1 ? 42 : (j === 0 ? 26 : 13) }));
+    XLSX.utils.book_append_sheet(wb, ws, name.slice(0, 31));
+  }
+  return XLSX.write(wb, { type:'array', bookType:'xlsx' });
+}
+async function exportReportXlsx(r){
+  let XLSX; try { XLSX = await getXLSX(); } catch(e){ toast(e.message + ' Použij CSV.'); return; }
+  const out = xlsxBytes(XLSX, r);
+  await store.download(`SupportQ_report_${cw(r.wk)}_${r.wk.slice(0,4)}.xlsx`, out);
+}
+function reportCsvText(r){
+  const sh = reportSheets(r);
+  const cell = v => { const t = typeof v === 'number' ? String(v).replace('.', ',') : String(v ?? ''); return /[;"\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
+  const out = [];
+  for (const [name, aoa] of [sh[0], sh[1], sh[3]]){ out.push(name); aoa.forEach(row => out.push(row.map(cell).join(';'))); out.push(''); }
+  return '\uFEFF' + out.join('\r\n');
+}
+function exportReportCsv(r){ store.download(`SupportQ_report_${cw(r.wk)}_${r.wk.slice(0,4)}.csv`, reportCsvText(r)); }
+function renderReportPanel(){
+  const el = $('reportPanel');
+  if (!UI.report){ el.innerHTML = ''; return; }
+  const wks = trendWeeks();
+  if (!wks.length){ el.innerHTML = '<div class="warnbox">Nejdřív nahraj data v sekci Import.</div>'; return; }
+  if (!UI.reportWk && UI.trendWk) UI.reportWk = UI.trendWk;
+  if (!UI.reportWk || !wks.includes(UI.reportWk)) UI.reportWk = wks.filter(w => weekCovered(w) === 7).at(-1) || wks.at(-1);
+  const r = buildReport(UI.reportWk);
+  const to = META.pmEmail || PM_EMAIL_DEFAULT;
+  const mailBody = r.text.length > 1800 ? r.text.slice(0, 1800) + '\n…(zkráceno – celý text vlož ze schránky)' : r.text;
+  const mailto = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(r.subject)}&body=${encodeURIComponent(mailBody)}`;
+  const miss = [];
+  if (r.h.t == null) miss.push('headcount');
+  if (r.P.some(x => x.st === 'DOPLNIT')) miss.push('počet lidí u ' + r.P.filter(x => x.st === 'DOPLNIT').length + ' projektů');
+  el.innerHTML = `<div class="card" style="border:2px solid var(--navy)">
+    <div class="row" style="justify-content:space-between"><h2>📧 Report pro Plant Managera</h2><button class="btn secondary sm" id="reportClose">Zavřít</button></div>
+    <div class="form" style="margin-bottom:.75rem">
+      <label>Týden<select id="reportWk">${wks.map(w => `<option value="${w}" ${w === r.wk ? 'selected' : ''}>${cw(w)} · ${fmtD(weekDates(w)[0])}${weekCovered(w) < 7 ? ' (neúplný)' : ''}</option>`).join('')}</select></label>
+      <label>E-mail příjemce<input id="pmEmail" type="email" value="${esc(to)}" placeholder="plant.manager@…"></label>
+    </div>
+    ${miss.length ? `<div class="warnbox">Před odesláním doplň: <b>${miss.join(', ')}</b> (sekce Týden po týdnu).</div>` : '<div class="okbox">Headcount i počty lidí jsou vyplněné.</div>'}
+    <label class="small muted">Předmět</label><div class="mono" style="margin:.2rem 0 .6rem">${esc(r.subject)}</div>
+    <label class="small muted">Náhled e-mailu</label>
+    <div id="reportHtml" style="background:#F5F7FA;border:1px solid var(--line);border-radius:8px;padding:10px;max-height:520px;overflow:auto;color:#1B2430">${reportHtml(r)}</div>
+    <div class="row" style="margin-top:.75rem">
+      ${store.dl ? '' : '<button class="btn" id="reportEml">Připravit e-mail s přílohou (Outlook)</button>'}
+      <button class="btn ${store.dl ? '' : 'secondary'}" id="reportCopyHtml">Kopírovat formátovaný e-mail</button>
+      <a class="btn secondary" href="${mailto}" style="text-decoration:none;display:inline-flex;align-items:center">Otevřít jako prostý text</a>
+      <button class="btn secondary" id="reportXlsx">Stáhnout Excel</button>
+      <button class="btn secondary" id="reportCsv">Stáhnout CSV</button>
+    </div>
+    <details style="margin-top:.6rem"><summary class="small">Postup odeslání</summary><ol class="small muted" style="margin:.3rem 0">
+      ${store.dl ? '' : '<li><b>Nejrychlejší:</b> Připravit e-mail s přílohou → otevři stažený soubor .eml → v Outlooku se otevře hotový e-mail včetně Excelu → Odeslat.</li>'}
+      <li><b>Kopírovat formátovaný e-mail</b> → v Outlooku nový e-mail → Ctrl+V → přilož Excel z tlačítka Stáhnout Excel.</li>
+      <li><b>Otevřít jako prostý text</b> – záloha, když nic z toho nejde (bez formátování).</li></ol></details>
+    <textarea id="reportText" readonly hidden>${esc(r.text)}</textarea>
+  </div>`;
+}
+
+function renderTydny(){
+  const wks = weeksList(), el = $('tydnyBody');
+  if (!wks.length){ $('weekChips').innerHTML = ''; el.innerHTML = emptyState('Zatím žádná data.'); return; }
+  if (!UI.week || !wks.includes(UI.week)) UI.week = wks.filter(w => weekCovered(w) === 7).at(-1) || wks.at(-1);
+  $('weekChips').innerHTML = wks.map(w => `<button class="chip ${w === UI.week ? 'active' : ''}" data-week="${w}">${cw(w)}<span class="d">${fmtD(weekDates(w)[0])}${weekCovered(w) < 7 ? ' · ' + weekCovered(w) + '/7' : ''}</span></button>`).join('');
+  const rows = allRows(), wk = UI.week, ds = weekDates(wk), dset = new Set(ds);
+  const i = wks.indexOf(wk), pw = i > 0 ? wks[i - 1] : null;
+  const wr = rows.filter(r => dset.has(r.d)), s = sum(wr), sp = pw ? weekSum(rows, pw) : null;
+  const both = weekCovered(wk) === 7 && pw && weekCovered(pw) === 7;
+  const R = both ? rag(s.t, sp.t) : rag(0, null);
+  const c = covSet();
+  const projs = [...new Set(wr.map(r => r.p).concat(pw ? rows.filter(r => weekDates(pw).includes(r.d)).map(r => r.p) : []))];
+  const lines = projs.map(p => {
+    const days = ds.map(d => { const v = ROWS[d + '|' + p]; return v ? v[0] + v[1] : 0; });
+    const t = days.reduce((a, b) => a + b, 0), pt = pw ? weekSum(rows.filter(r => r.p === p), pw).t : null;
+    return { p, days, t, pt, rg: both ? rag(t, pt) : rag(0, null), nh: wr.filter(r => r.p === p).reduce((a, r) => a + r.nh, 0) };
+  }).sort((a, b) => b.t - a.t);
+  el.innerHTML = `
+  <div class="grid-kpi">
+    <div class="card kpi"><div class="lbl">${cw(wk)} · ${fmtD(ds[0])}–${fmtDY(ds[6])}</div><div class="val">${fmt(s.t)}</div><div class="sub">den ${fmt(s.dh)} · noc ${fmt(s.nh)} · v datech ${weekCovered(wk)}/7 dní</div></div>
+    <div class="card kpi"><div class="lbl">vs. ${pw ? cw(pw) : 'předchozí týden'}</div><div class="val">${sp ? fmt(sp.t) : '–'}</div>
+      <div class="sub"><span class="tag ${R.cls}">${R.label}</span> ${R.pct != null ? pct(R.pct, 1) : (both ? '' : 'porovnání jen u dvou úplných týdnů')}</div></div>
+    <div class="card kpi"><div class="lbl">Ø osob / den (ekv. 12h)</div><div class="val">${weekCovered(wk) ? fmt(s.t / SHIFT_H / weekCovered(wk), 1) : '–'}</div><div class="sub">max. den: ${fmt(Math.max(...ds.map(d => sum(wr.filter(r => r.d === d)).t)) / SHIFT_H, 1)} osob · headcount ${fmt(hcWeekTotal(wk), 1)}</div></div>
+    <div class="card kpi"><div class="lbl">Víkend (So+Ne)</div><div class="val">${fmt(sum(wr.filter(r => dow(r.d) >= 5)).t)}</div><div class="sub">${s.t ? fmt(sum(wr.filter(r => dow(r.d) >= 5)).t / s.t * 100, 0) : 0} % hodin týdne</div></div>
+  </div>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th>Projekt</th><th>Popis</th>${ds.map((d, j) => `<th class="num">${DOW[j]} ${fmtD(d)}${c.has(d) ? '' : ' ⚠'}</th>`).join('')}<th class="num">Týden</th><th class="num">z toho noc</th><th class="num">${pw ? cw(pw) : 'Předch.'}</th><th>Δ</th></tr></thead>
+    <tbody>${lines.map(l => `<tr><td class="mono">${esc(l.p)}</td><td class="desc">${esc(pname(l.p))}</td>
+      ${l.days.map(v => `<td class="num ${v ? '' : 'zero'}">${fmt(v)}</td>`).join('')}
+      <td class="num"><b>${fmt(l.t)}</b></td><td class="num">${fmt(l.nh)}</td><td class="num">${fmt(l.pt)}</td>
+      <td><span class="tag ${l.rg.cls}">${l.rg.label}</span> <span class="mono small">${l.rg.pct != null ? pct(l.rg.pct) : ''}</span></td></tr>`).join('')}</tbody>
+    <tfoot><tr><td colspan="2">Celkem den</td>${ds.map(d => `<td class="num">${fmt(sum(wr.filter(r => r.d === d)).t)}</td>`).join('')}<td class="num">${fmt(s.t)}</td><td class="num">${fmt(s.nh)}</td><td class="num">${sp ? fmt(sp.t) : '–'}</td><td></td></tr></tfoot>
+  </table></div>
+  <p class="small muted">⚠ u dne = den není pokrytý žádným importem (neznamená nulu). Δ se počítá jen mezi dvěma úplnými týdny.</p>`;
+}
+
+function orderForm(o){
+  o = o || { po:'', projects:[], hours:null, amount:null, rd:null, rn:null, from:'', to:'', note:'' };
+  const v = x => x == null ? '' : x;
+  return `<div class="card"><h2>${UI.editOrder && UI.editOrder !== 'new' ? 'Upravit objednávku' : 'Nová objednávka'}</h2>
+  <form class="form" id="orderForm">
+    <label>Číslo objednávky *<input name="po" required value="${esc(o.po)}"></label>
+    <label>Projekty * (kódy, oddělit čárkou)<input name="projects" required value="${esc(o.projects.join(', '))}" placeholder="CZ19005, CZ23042" list="projList"></label>
+    <label>Platnost od<input type="date" name="from" value="${v(o.from)}"></label>
+    <label>Platnost do<input type="date" name="to" value="${v(o.to)}"></label>
+    <label>Objednané hodiny<input name="hours" inputmode="decimal" value="${v(o.hours)}"></label>
+    <label>Částka (${cur()})<input name="amount" inputmode="decimal" value="${v(o.amount)}"></label>
+    <label>Sazba den (${cur()}/h)<input name="rd" inputmode="decimal" value="${v(o.rd)}"></label>
+    <label>Sazba noc (${cur()}/h, prázdné = jako den)<input name="rn" inputmode="decimal" value="${v(o.rn)}"></label>
+    <label style="grid-column:1/-1">Poznámka<input name="note" value="${esc(o.note)}"></label>
+  </form>
+  <datalist id="projList">${Object.keys(META.projects).sort().map(p => `<option value="${esc(p)}">${esc(pname(p))}</option>`).join('')}</datalist>
+  <div class="row" style="margin-top:.75rem"><button class="btn" id="saveOrder">Uložit</button><button class="btn secondary" id="cancelOrder">Zrušit</button>
+  <span class="small muted">Budget se hlídá v hodinách, pokud jsou zadané; jinak v penězích (částka + sazba).</span></div></div>`;
+}
+
+function renderBudget(){
+  $('newOrderBtn').disabled = !store.canWrite;
+  $('orderFormWrap').innerHTML = UI.editOrder ? orderForm(UI.editOrder === 'new' ? null : META.orders.find(o => o.id === UI.editOrder)) : '';
+  const el = $('budgetBody');
+  const rows = allRows();
+  if (!META.orders.length){
+    el.innerHTML = `<div class="card empty"><div class="big">🧾</div>Zatím žádné objednávky.<br>Nahraj seznam objednávek v Importu, nebo přidej ručně tlačítkem <b>+ Nová objednávka</b>.</div>`;
+  } else {
+    const st = META.orders.map(o => ({ o, s: orderStats(o, rows) }));
+    el.innerHTML = `
+    <div class="legend"><span><span class="tag crit">PŘEČERPÁNO / HROZÍ</span> skutečnost nebo prognóza &gt; objednávka</span><span><span class="tag warn">RYCHLÉ ČERPÁNÍ</span> čerpání o &gt; ${FAST_BURN_PP} p.b. před uplynulým časem</span><span><span class="tag good">OK</span></span><span>svislá čárka v pruhu = uplynulý čas objednávky</span></div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Stav</th><th>Objednávka</th><th>Projekty</th><th>Platnost</th><th class="num">Objednáno</th><th class="num">Vyčerpáno</th><th>Čerpání</th><th class="num">Zbývá</th><th class="num">Run-rate / den</th><th>Prognóza do konce</th><th class="num">Hodiny celkem</th><th class="num">Náklady</th><th></th></tr></thead>
+      <tbody>${st.map(({ o, s }) => {
+        const unit = s.basis === 'h' ? ' h' : '';
+        const f = v => s.basis === 'h' ? fmt(v) + ' h' : s.basis === 'kc' ? fmtKc(v) : '–';
+        const p = s.consumed != null ? Math.min(1, s.consumed) : 0;
+        const col = s.consumed > 1 ? 'var(--crit)' : (s.forecast != null && s.cap && s.forecast > s.cap) ? 'var(--crit)' : (s.elapsed != null && s.consumed != null && (s.consumed - s.elapsed) * 100 > FAST_BURN_PP) ? 'var(--warn)' : 'var(--good)';
+        let stLabel = { cls:'neutral', label:'BEZ LIMITU' };
+        if (s.cap){ if (s.consumed > 1) stLabel = { cls:'crit', label:'PŘEČERPÁNO' }; else if (s.forecast != null && s.forecast > s.cap) stLabel = { cls:'crit', label:'HROZÍ PŘEČERPÁNÍ' }; else if (s.elapsed != null && (s.consumed - s.elapsed) * 100 > FAST_BURN_PP) stLabel = { cls:'warn', label:'RYCHLÉ ČERPÁNÍ' }; else stLabel = { cls:'good', label:'OK' }; }
+        if (!s.cap && o.amount != null && o.rd == null) stLabel = { cls:'warn', label:'CHYBÍ SAZBA' };
+        return `<tr>
+          <td><span class="tag ${stLabel.cls}">${stLabel.label}</span></td>
+          <td class="mono"><b>${esc(o.po)}</b>${o.note ? `<div class="small muted" style="font-family:var(--f-text)">${esc(o.note)}</div>` : ''}</td>
+          <td class="desc">${o.projects.map(p => `<span class="mono">${esc(p)}</span> <span class="muted small">${esc(pname(p))}</span>`).join('<br>')}</td>
+          <td class="small">${o.from ? fmtDY(o.from) : '–'} → ${o.to ? fmtDY(o.to) : '–'}</td>
+          <td class="num">${f(s.cap)}</td><td class="num">${f(s.used)}</td>
+          <td><div class="bar"><span style="width:${(p * 100).toFixed(1)}%;background:${col}"></span>${s.elapsed != null ? `<em style="left:${(s.elapsed * 100).toFixed(1)}%"></em>` : ''}</div>
+            <div class="small mono">${s.consumed != null ? fmt(s.consumed * 100, 1) + ' %' : '–'}${s.elapsed != null ? ' · čas ' + fmt(s.elapsed * 100, 0) + ' %' : ''}</div></td>
+          <td class="num">${s.cap != null ? f(s.cap - s.used) : '–'}</td>
+          <td class="num">${s.perDay != null ? f(s.perDay) : '<span class="muted small">málo dat</span>'}</td>
+          <td class="small">${s.forecast != null && s.cap ? `${f(s.forecast)} (${fmt(s.forecast / s.cap * 100, 0)} %)` : '–'}${s.exhaust && (!o.to || s.exhaust <= o.to) ? `<br><b style="color:var(--crit)">vyčerpáno cca ${fmtDY(s.exhaust)}</b>` : ''}</td>
+          <td class="num">${fmt(s.s.t)}</td><td class="num">${s.kc != null ? fmtKc(s.kc) : '–'}</td>
+          <td>${store.canWrite ? `<button class="btn secondary sm" data-edit="${o.id}">Upravit</button> <button class="btn secondary sm" data-del="${o.id}">Smazat</button>` : ''}</td></tr>`; }).join('')}</tbody>
+    </table></div>`;
+  }
+  // Projekty bez objednávky – celkově
+  const allP = [...new Set(rows.map(r => r.p))].sort();
+  const noOrd = allP.filter(p => !META.orders.some(o => o.projects.includes(p)));
+  const outside = allP.map(p => { const pr = rows.filter(r => r.p === p && META.orders.some(o => o.projects.includes(p)) && !orderFor(p, r.d).length); return { p, t: sum(pr).t }; }).filter(x => x.t > 0);
+  const ovl = overlaps();
+  el.innerHTML += `<div class="two" style="margin-top:1rem">
+    <div class="card"><h2>Projekty bez objednávky</h2>${noOrd.length ? `<table><tbody>${noOrd.map(p => `<tr><td class="mono">${esc(p)}</td><td class="desc">${esc(pname(p))}</td><td class="num">${fmt(sum(rows.filter(r => r.p === p)).t)} h</td></tr>`).join('')}</tbody></table>` : '<div class="okbox">Všechny vykázané projekty mají objednávku.</div>'}</div>
+    <div class="card"><h2>Hodiny mimo platnost objednávky</h2>${outside.length ? `<table><tbody>${outside.map(x => `<tr><td class="mono">${esc(x.p)}</td><td class="desc">${esc(pname(x.p))}</td><td class="num">${fmt(x.t)} h</td></tr>`).join('')}</tbody></table>` : '<div class="okbox">Žádné.</div>'}
+    ${ovl.length ? `<div class="critbox"><b>Překryv objednávek:</b> ${ovl.map(esc).join('; ')}</div>` : ''}</div></div>`;
+}
+
+function renderImportPreview(){
+  const el = $('importPreview');
+  if (!UI.pending.length){ el.innerHTML = ''; return; }
+  el.innerHTML = UI.pending.map((x, i) => {
+    if (x.error) return `<div class="critbox"><b>${esc(x.file)}:</b> ${esc(x.error)}</div>`;
+    if (x.type === 'hours'){
+      const days = daysBetween(x.from, x.to) + 1;
+      const existing = [];
+      for (let d = x.from; d <= x.to; d = addDays(d, 1)) if (META.cov.includes(d)) existing.push(d);
+      const t = x.tot.dh + x.tot.nh;
+      const chk = x.sumar ? (Math.abs(x.sumar.dh - x.tot.dh) < .01 && Math.abs(x.sumar.nh - x.tot.nh) < .01 && Math.abs(x.sumar.t - t) < .01) : null;
+      const newP = Object.keys(x.projects).filter(p => !META.projects[p]);
+      const sample = Object.entries(x.map).slice(0, 5);
+      return `<div class="card" style="margin-top:1rem;background:var(--bg)">
+        <h2>📄 ${esc(x.file)} <span class="tag info">HODINY</span></h2>
+        <div class="grid-kpi">
+          <div class="card kpi"><div class="lbl">Období</div><div class="val" style="font-size:1.1rem">${fmtDY(x.from)} – ${fmtDY(x.to)}</div><div class="sub">${days} dní · ${[...new Set([x.from, x.to].map(isoWeek))].map(cw).join('–')}</div></div>
+          <div class="card kpi"><div class="lbl">Řádků / projektů</div><div class="val">${x.nRows} / ${Object.keys(x.projects).length}</div><div class="sub">${newP.length ? 'nové projekty: ' + newP.map(esc).join(', ') : 'žádný nový projekt'}</div></div>
+          <div class="card kpi"><div class="lbl">Hodiny celkem</div><div class="val">${fmt(t)}</div><div class="sub">den ${fmt(x.tot.dh)} · noc ${fmt(x.tot.nh)}</div></div>
+        </div>
+        ${chk === true ? `<div class="okbox">✓ Kontrolní součet sedí s řádkem „Sumar“ (${fmt(x.sumar.dh)} / ${fmt(x.sumar.nh)} / ${fmt(x.sumar.t)} h).</div>`
+          : chk === false ? `<div class="critbox">✗ Nesedí s řádkem „Sumar“: soubor uvádí ${fmt(x.sumar.dh)} / ${fmt(x.sumar.nh)} / ${fmt(x.sumar.t)} h, řádky dávají ${fmt(x.tot.dh)} / ${fmt(x.tot.nh)} / ${fmt(t)} h. Vrať Support Q k opravě.</div>`
+          : `<div class="warnbox">Řádek „Sumar“ nenalezen – kontrolní součet neproveden.</div>`}
+        ${x.issues.length ? `<div class="warnbox"><b>Upozornění (${x.issues.length}):</b><ul class="plain">${x.issues.slice(0, 12).map(s => `<li>${esc(s)}</li>`).join('')}</ul></div>` : ''}
+        ${existing.length ? `<div class="warnbox">Přepíše <b>${existing.length}</b> dní, které už v datech jsou (${fmtD(existing[0])}–${fmtDY(existing.at(-1))}). Data těchto dní se nahradí obsahem souboru.</div>` : ''}
+        ${x.unmapped.length ? `<div class="small muted">Nenamapované sloupce: ${x.unmapped.map(esc).join(', ')}</div>` : ''}
+        <details><summary>Prvních 5 záznamů</summary><table><tbody>${sample.map(([k, v]) => `<tr><td class="mono">${k.replace('|', ' · ')}</td><td class="num">${fmt(v[0])}</td><td class="num">${fmt(v[1])}</td></tr>`).join('')}</tbody></table></details>
+        <div class="row" style="margin-top:.75rem"><button class="btn" data-commit="${i}" ${store.canWrite ? '' : 'disabled'}>${existing.length ? 'Uložit a přepsat' : 'Uložit'}</button><button class="btn secondary" data-drop="${i}">Zahodit</button></div>
+      </div>`;
+    }
+    const exist = x.list.filter(o => META.orders.some(m => m.po === o.po));
+    return `<div class="card" style="margin-top:1rem;background:var(--bg)">
+      <h2>📄 ${esc(x.file)} <span class="tag info">OBJEDNÁVKY</span></h2>
+      <div class="tbl-wrap"><table><thead><tr><th>Objednávka</th><th>Projekty</th><th class="num">Hodiny</th><th class="num">Částka</th><th class="num">Sazba den/noc</th><th>Platnost</th></tr></thead>
+      <tbody>${x.list.map(o => `<tr><td class="mono">${esc(o.po)}${exist.includes(o) ? ' <span class="tag warn">AKTUALIZACE</span>' : ''}</td><td>${o.projects.map(esc).join(', ')}</td><td class="num">${fmt(o.hours)}</td><td class="num">${fmtKc(o.amount)}</td><td class="num">${fmt(o.rd)} / ${fmt(o.rn ?? o.rd)}</td><td class="small">${fmtDY(o.from)} → ${fmtDY(o.to)}</td></tr>`).join('')}</tbody></table></div>
+      ${x.issues.length ? `<div class="warnbox"><ul class="plain">${x.issues.map(s => `<li>${esc(s)}</li>`).join('')}</ul></div>` : ''}
+      <div class="row" style="margin-top:.75rem"><button class="btn" data-commit="${i}" ${store.canWrite ? '' : 'disabled'}>Uložit ${x.list.length} objednávek</button><button class="btn secondary" data-drop="${i}">Zahodit</button></div></div>`;
+  }).join('');
+}
+
+function renderMetodika(){
+  $('metodikaText').innerHTML = `
+  <h2>Zdroj dat</h2>
+  <p>Týdenní soubor <b>„Přehled hodin za poskytnuté služby“</b> od Support Q (CSV nebo Excel), posílaný v pondělí, nejpozději v úterý. Ukládá se po dnech a projektech; opakovaný import stejných dní je přepíše (soubory se mohou překrývat, nic se nezapočítá dvakrát). Sloupce se hledají podle názvu hlavičky, ne podle pořadí. Řádek „Sumar“ slouží jako kontrolní součet – nesoulad se ukáže před uložením.</p>
+  <h2>Týden a měsíc</h2>
+  <ul class="plain"><li>Týden = ISO týden Po–Ne (CWxx). Týden je <b>úplný</b>, když jsou v datech všech 7 dní.</li>
+  <li>Měsíc = součet všech dní v kalendářním měsíci; týdny přes přelom měsíce se dělí podle dnů. „Pokryto X/Y dní“ ukazuje, kolik dní měsíce už přišlo v reportech.</li></ul>
+  <h2>Trend (RAG)</h2>
+  <p>Poslední úplný týden W<sub>n</sub> proti W<sub>n−1</sub>: <span class="tag crit">ROSTE</span> &gt; +5 %, <span class="tag good">KLESÁ</span> &lt; −5 %, jinak <span class="tag warn">STABILNÍ</span>. Barva i procento z téhož výpočtu. Růst hodin = růst nákladů, proto je červený.</p>
+  <h2>Headcount a hodiny na osobu</h2>
+  <ul class="plain"><li><b>Headcount</b> vyplňuje Support Q každý týden v sekci Týden po týdnu: počet operátorů, koordinátorů, projektových manažerů a administrativních pracovníků Support Q v Plané (osoby, ne pozice na směnu).</li>
+  <li><b>Hodin na osobu</b> = hodiny týdne ÷ headcount celkem (neúplný týden přepočten na 7 dní). V měsíci = hodiny měsíce ÷ Ø headcount ÷ (pokryté dny ÷ 7).</li>
+  <li>Norma 12h modelu: krátký týden 36 h, dlouhý 48 h, průměr ${HC_NORM} h. <span class="tag good">V MODELU</span> ≤ ${HC_WARN} h · <span class="tag warn">PŘESČAS</span> ${HC_WARN}–${HC_CRIT} h · <span class="tag crit">OVĚŘIT</span> &gt; ${HC_CRIT} h (5 a více 12h směn týdně na každého člověka).</li>
+  <li>„Hodiny odpovídají X osobám“ = hodiny ÷ ${HC_NORM} h – kolik lidí by stačilo při plném 12h modelu.</li></ul>
+  <h2>Objednávky a budget</h2>
+  <ul class="plain">
+  <li>Do objednávky se počítají hodiny jejích projektů v období platnosti (od–do; bez data = bez omezení).</li>
+  <li>Budget v <b>hodinách</b>, pokud jsou zadané; jinak v <b>penězích</b> (${META.cur}) = denní h × sazba den + noční h × sazba noc (noc prázdná = sazba den).</li>
+  <li>Run-rate = čerpání za posledních ${RUNRATE_DAYS} kalendářních dní s daty ÷ počet těchto dní (minimálně 7). Prognóza = vyčerpáno + run-rate × dny do konce platnosti.</li>
+  <li><span class="tag crit">PŘEČERPÁNO</span> vyčerpáno &gt; 100 % · <span class="tag crit">HROZÍ PŘEČERPÁNÍ</span> prognóza &gt; 100 % · <span class="tag warn">RYCHLÉ ČERPÁNÍ</span> % čerpání o &gt; ${FAST_BURN_PP} p.b. vyšší než % uplynulého času · <span class="tag good">OK</span>.</li>
+  <li>Import objednávek: řádky se stejným číslem objednávky se slučují (projekty se spojí, hodiny a částky sečtou). Existující objednávka se stejným číslem se aktualizuje.</li></ul>
+  <p class="small muted">Úložiště: ${store.mode === 'fb' ? 'Firebase Realtime Database (sdílené, živé – vidí všichni přihlášení se schváleným přístupem)' : store.mode === 'db' ? 'sdílená databáze artefaktu (vidí všichni s přístupem)' : 'tento prohlížeč (localStorage) – pro přenos použij zálohu JSON níže'}.</p>`;
+  $('importHistory').innerHTML = META.imports.length
+    ? `<div class="tbl-wrap"><table><thead><tr><th>Importováno</th><th>Soubor</th><th>Typ</th><th>Období</th><th class="num">Hodiny</th><th>Kontrola Sumar</th></tr></thead><tbody>${[...META.imports].reverse().map(h =>
+      `<tr><td class="small">${new Date(h.at).toLocaleString('cs-CZ')}</td><td class="small">${esc(h.file)}</td><td>${h.type === 'hours' ? 'hodiny' : 'objednávky'}</td><td class="small">${h.from ? fmtDY(h.from) + ' – ' + fmtDY(h.to) : '–'}</td><td class="num">${h.t != null ? fmt(h.t) : '–'}</td><td>${h.chk === true ? '<span class="tag good">OK</span>' : h.chk === false ? '<span class="tag crit">NESEDÍ</span>' : '–'}</td></tr>`).join('')}</tbody></table></div>`
+    : '<span class="muted">Zatím nic.</span>';
+  const months = monthsList();
+  $('dataAdmin').innerHTML = `
+    ${store.canWrite ? `<div class="row" style="margin-bottom:.75rem"><label class="small muted">Měna objednávek a sazeb <select id="curSel">${Object.keys(CUR_SYM).map(c => `<option ${c === META.cur ? 'selected' : ''}>${c}</option>`).join('')}</select></label></div>` : ''}
+    <div class="row"><button class="btn secondary sm" id="backupBtn">Záloha všech dat (JSON)</button>
+    ${store.canWrite ? `<label class="btn secondary sm" style="display:inline-flex;align-items:center">Obnovit ze zálohy<input type="file" id="restoreInput" accept=".json" hidden></label>` : ''}</div>
+    ${store.canWrite && months.length ? `<p class="small muted" style="margin-top:.75rem">Smazat data měsíce (např. chybný import):</p><div class="row">${months.map(m => `<button class="btn secondary sm" data-delmonth="${m}">${monthName(m)}</button>`).join('')}</div>` : ''}`;
+}
+
+function renderAll(){
+  renderUsers().catch(() => {}); renderNow(); renderReportPanel(); renderTrend(); renderPrehled(); renderTydny(); renderBudget(); renderImportPreview(); renderMetodika();
+  const n = Object.keys(ROWS).length, last = META.cov.length ? [...META.cov].sort().at(-1) : null;
+  const ns = nowStatus();
+  $('railMeta').innerHTML = `<div style="font-size:1rem;color:#fff;font-weight:600">Dnes ${cw(ns.curWk)}</div>${fmtDY(ns.today)}<br><br>` + (store.user ? `👤 ${esc(store.user.email)}<br>${ROLE_CZ[store.role] || ''}<br><br>` : '') + (n ? `Data do <b>${fmtDY(last)}</b><br>${monthsList().length} měs. · ${META.orders.length} objednávek${store.canWrite ? '' : '<br>jen ke čtení'}` : 'Bez dat');
+}
+
+/* ===================== 8. Akce ===================== */
+function toast(msg){ const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 3500); }
+function go(view){
+  document.querySelectorAll('.rail button[data-go]').forEach(x => x.classList.toggle('active', x.dataset.go === view));
+  document.querySelectorAll('section[data-view]').forEach(s => s.classList.toggle('active', s.dataset.view === view));
+  window.scrollTo(0, 0);
+}
+
+async function handleFiles(files){
+  for (const f of files){
+    try{
+      const rows = await fileToRows(f);
+      const res = parseHours(rows, f.name) || parseOrders(rows, f.name);
+      if (!res) throw new Error('Nepoznám typ souboru. Hledám hlavičku s „Datum, Projekt, Denní hodiny, Noční hodiny“ (hodiny) nebo „Objednávka, Projekt“ (objednávky). První řádek souboru: ' + (rows[0] || []).filter(Boolean).slice(0, 8).join(' | '));
+      UI.pending.push(res);
+    }catch(err){ UI.pending.push({ file: f.name, error: err.message }); }
+  }
+  renderImportPreview();
+}
+
+async function commitPending(i){
+  const x = UI.pending[i]; if (!x) return;
+  if (x.type === 'hours'){
+    const touched = new Set();
+    for (const k of Object.keys(ROWS)){ const d = k.slice(0,10); if (d >= x.from && d <= x.to){ delete ROWS[k]; touched.add(d.slice(0,7)); } }
+    for (const [k, v] of Object.entries(x.map)){ ROWS[k] = v; touched.add(k.slice(0,7)); }
+    const cov = new Set(META.cov); for (let d = x.from; d <= x.to; d = addDays(d, 1)) cov.add(d);
+    META.cov = [...cov].sort();
+    for (const [p, m] of Object.entries(x.projects)) META.projects[p] = m;
+    const t = x.tot.dh + x.tot.nh;
+    const chk = x.sumar ? Math.abs(x.sumar.t - t) < .01 && Math.abs(x.sumar.dh - x.tot.dh) < .01 : null;
+    META.imports.push({ at: new Date().toISOString(), file: x.file, type:'hours', from: x.from, to: x.to, t, chk });
+    if (META.imports.length > 200) META.imports = META.imports.slice(-200);
+    const ok = await safeSave(async () => { await store.saveMonths([...touched]); await store.saveMeta(); });
+    if (ok){ toast(`Uloženo: ${fmtDY(x.from)} – ${fmtDY(x.to)}, ${fmt(t)} h`); UI.month = x.to.slice(0,7); UI.week = null; UI.trendWk = null; UI.reportWk = null; UI.hcOpen = false; }
+  } else {
+    for (const o of x.list){ const ex = META.orders.find(m => m.po === o.po); if (ex) Object.assign(ex, { ...o, id: ex.id }); else META.orders.push(o); }
+    META.imports.push({ at: new Date().toISOString(), file: x.file, type:'orders' });
+    if (await safeSave(() => store.saveMeta())) toast(`Uloženo ${x.list.length} objednávek`);
+  }
+  UI.pending.splice(i, 1);
+  renderAll();
+}
+
+async function saveOrderForm(){
+  const fd = new FormData($('orderForm'));
+  const po = String(fd.get('po') || '').trim();
+  const projects = String(fd.get('projects') || '').split(/[,;\s]+/).map(s => s.trim()).filter(Boolean);
+  if (!po || !projects.length){ toast('Vyplň číslo objednávky a aspoň jeden projekt.'); return; }
+  const o = { po, projects, from: fd.get('from') || null, to: fd.get('to') || null, hours: num(fd.get('hours')), amount: num(fd.get('amount')), rd: num(fd.get('rd')), rn: num(fd.get('rn')), note: String(fd.get('note') || '').trim() };
+  if (o.from && o.to && o.from > o.to){ toast('Platnost od je po platnosti do.'); return; }
+  if (UI.editOrder && UI.editOrder !== 'new'){ const ex = META.orders.find(m => m.id === UI.editOrder); Object.assign(ex, o); }
+  else META.orders.push({ id: 'o' + Math.random().toString(36).slice(2,9), ...o });
+  if (await safeSave(() => store.saveMeta())){ toast('Objednávka uložena'); UI.editOrder = null; }
+  renderAll();
+}
+
+function exportMonthCsv(){
+  const mk = UI.month; if (!mk) return;
+  const rows = allRows().filter(r => r.d.startsWith(mk)).sort((a, b) => a.d.localeCompare(b.d) || a.p.localeCompare(b.p));
+  const n = v => String(Math.round(v * 100) / 100).replace('.', ',');
+  const lines = ['Datum;Týden;Projekt;Popis;Denní hodiny;Noční hodiny;Hodiny celkem;Náklady ' + META.cur + ';Objednávka']
+    .concat(rows.map(r => { const c = rowCost(r); return [fmtDY(r.d).replace(/ /g,''), cw(isoWeek(r.d)), r.p, '"' + pname(r.p).replace(/"/g,'""') + '"', n(r.dh), n(r.nh), n(r.t), c != null ? n(c) : '', orderFor(r.p, r.d).map(o => o.po).join(',')].join(';'); }));
+  store.download(`SupportQ_hodiny_${mk}.csv`, '﻿' + lines.join('\r\n'));
+}
+
+/* ===================== 9. Události ===================== */
+$('rail').addEventListener('click', e => { const b = e.target.closest('button[data-go]'); if (b) go(b.dataset.go); });
+$('themeBtn').addEventListener('click', () => {
+  const r = document.documentElement, dark = r.dataset.theme ? r.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  r.dataset.theme = dark ? 'light' : 'dark';
+  try { localStorage.setItem('sq.theme', r.dataset.theme); } catch(e){}
+});
+try { const th = localStorage.getItem('sq.theme'); if (th) document.documentElement.dataset.theme = th; } catch(e){}
+
+document.addEventListener('click', async e => {
+  const t = e.target.closest('#demoDel,[data-twk],#reportBtn,#reportClose,#reportCopy,#reportCopyHtml,#reportEml,#reportXlsx,#reportCsv,[data-hccopy],[data-month],[data-week],[data-sort],[data-commit],[data-drop],[data-edit],[data-del],[data-delmonth],#newOrderBtn,#saveOrder,#cancelOrder,#exportMonth,#backupBtn');
+  if (!t) return;
+  if (t.id === 'demoDel'){
+    if (t.dataset.confirm !== '1'){ t.dataset.confirm = '1'; t.textContent = 'Opravdu smazat ukázková data?'; return; }
+    const d = META.demo; if (!d) return;
+    const months = new Set();
+    for (const k of Object.keys(ROWS)){ const day = k.slice(0,10); if (day >= d.from && day <= d.to){ delete ROWS[k]; months.add(day.slice(0,7)); } }
+    META.cov = META.cov.filter(x => x < d.from || x > d.to);
+    (d.weeks || []).forEach(w => { if (META.hc) delete META.hc[w]; if (META.hcp) delete META.hcp[w]; });
+    META.imports = META.imports.filter(x => !x.demo);
+    delete META.demo; UI.trendWk = null; UI.reportWk = null;
+    if (await safeSave(async () => { await store.saveMonths([...months]); await store.saveMeta(); })) toast('Ukázková data smazána');
+    renderAll(); return;
+  }
+  if (t.dataset.twk){ UI.trendWk = t.dataset.twk; UI.hcOpen = false; renderTrend(); return; }
+  if (t.id === 'reportBtn'){ UI.report = true; renderReportPanel(); $('reportPanel').scrollIntoView({ behavior:'smooth' }); return; }
+  if (t.id === 'reportClose'){ UI.report = false; renderReportPanel(); return; }
+  if (t.id === 'reportCopy'){
+    const ta = $('reportText'), txt = buildReport(UI.reportWk).subject + '\n\n' + ta.value;
+    try { await navigator.clipboard.writeText(txt); toast('Text zkopírován – vlož do e-mailu'); }
+    catch(err){ ta.removeAttribute('readonly'); ta.focus(); ta.select(); try { document.execCommand('copy'); toast('Text zkopírován'); } catch(e2){ toast('Označeno – zkopíruj Ctrl+C'); } ta.setAttribute('readonly', ''); }
+    return;
+  }
+  if (t.id === 'reportCopyHtml'){
+    const r = buildReport(UI.reportWk), html = reportHtml(r);
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([html], { type:'text/html' }), 'text/plain': new Blob([r.text], { type:'text/plain' }) })]);
+      toast('Formátovaný e-mail zkopírován – vlož do Outlooku (Ctrl+V)');
+    } catch(err){
+      const box = $('reportHtml'), sel = window.getSelection(), rg = document.createRange();
+      rg.selectNodeContents(box); sel.removeAllRanges(); sel.addRange(rg);
+      let ok = false; try { ok = document.execCommand('copy'); } catch(e2){}
+      sel.removeAllRanges(); toast(ok ? 'Formátovaný e-mail zkopírován – vlož do Outlooku (Ctrl+V)' : 'Kopírování selhalo – označ náhled myší a Ctrl+C');
+    }
+    return;
+  }
+  if (t.id === 'reportEml'){
+    t.disabled = true; const old = t.textContent; t.textContent = 'Připravuji…';
+    try { const r = buildReport(UI.reportWk); const eml = await buildEml(r); await store.download(`SupportQ_report_${cw(r.wk)}_${r.wk.slice(0,4)}.eml`, eml); toast('E-mail stažen – otevři soubor .eml, otevře se v Outlooku'); }
+    catch(err){ toast('Nepodařilo se: ' + err.message); }
+    t.disabled = false; t.textContent = old; return;
+  }
+  if (t.id === 'reportXlsx'){ await exportReportXlsx(buildReport(UI.reportWk)); return; }
+  if (t.id === 'reportCsv'){ exportReportCsv(buildReport(UI.reportWk)); return; }
+  if (t.dataset.hccopy){
+    const wk = t.dataset.hccopy, wks = weeksList(), pw = wks[wks.indexOf(wk) - 1];
+    if (!pw) return;
+    const ph = hcGet(pw); META.hc[wk] = {}; HC_FIELDS.forEach(([k]) => { if (ph[k] != null) META.hc[wk][k] = ph[k]; });
+    META.hcp = META.hcp || {}; META.hcp[wk] = Object.assign({}, META.hcp[pw] || {});
+    if (await safeSave(() => store.saveMeta())) toast('Headcount převzat z ' + cw(pw) + ' – uprav, co se změnilo');
+    renderAll(); return;
+  }
+  if (t.dataset.month){ UI.month = t.dataset.month; renderPrehled(); }
+  else if (t.dataset.week){ UI.week = t.dataset.week; renderTydny(); }
+  else if (t.dataset.sort){ const k = t.dataset.sort; UI.sort = { k, dir: UI.sort.k === k ? -UI.sort.dir : (k === 'p' || k === 'desc' ? 1 : -1) }; renderPrehled(); }
+  else if (t.dataset.commit != null){ t.disabled = true; await commitPending(+t.dataset.commit); }
+  else if (t.dataset.drop != null){ UI.pending.splice(+t.dataset.drop, 1); renderImportPreview(); }
+  else if (t.dataset.edit){ UI.editOrder = t.dataset.edit; renderBudget(); window.scrollTo(0, 0); }
+  else if (t.dataset.del){
+    if (t.dataset.confirm !== '1'){ t.dataset.confirm = '1'; t.textContent = 'Opravdu smazat?'; t.classList.add('danger'); t.classList.remove('secondary'); return; }
+    META.orders = META.orders.filter(o => o.id !== t.dataset.del);
+    if (await safeSave(() => store.saveMeta())) toast('Objednávka smazána'); renderAll();
+  }
+  else if (t.dataset.delmonth){
+    const mk = t.dataset.delmonth;
+    if (t.dataset.confirm !== '1'){ t.dataset.confirm = '1'; t.textContent = 'Opravdu smazat ' + monthName(mk) + '?'; t.classList.add('danger'); t.classList.remove('secondary'); return; }
+    for (const k of Object.keys(ROWS)) if (k.startsWith(mk)) delete ROWS[k];
+    META.cov = META.cov.filter(d => !d.startsWith(mk));
+    if (await safeSave(async () => { await store.saveMonths([mk]); await store.saveMeta(); })) toast('Smazáno: ' + monthName(mk));
+    renderAll();
+  }
+  else if (t.id === 'newOrderBtn'){ UI.editOrder = 'new'; renderBudget(); }
+  else if (t.id === 'saveOrder'){ await saveOrderForm(); }
+  else if (t.id === 'cancelOrder'){ UI.editOrder = null; renderBudget(); }
+  else if (t.id === 'exportMonth'){ exportMonthCsv(); }
+  else if (t.id === 'backupBtn'){ store.download(`SupportQ_zaloha_${new Date().toISOString().slice(0,10)}.json`, JSON.stringify({ meta: META, rows: ROWS }, null, 1)); }
+});
+let hcTimer = null, hcSaving = Promise.resolve();
+function queueHcSave(){
+  clearTimeout(hcTimer);
+  hcTimer = setTimeout(() => { hcSaving = hcSaving.then(() => safeSave(() => store.saveMeta())).then(ok => { if (ok) toast('Headcount uložen'); }); }, 700);
+}
+document.addEventListener('toggle', e => { if (e.target.classList && e.target.classList.contains('hc-card')) UI.hcOpen = e.target.open; }, true);
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (t.dataset && t.dataset.hcp){
+    const wk = t.dataset.wk, p = t.dataset.hcp, v = t.value.trim() === '' ? null : num(t.value);
+    META.hcp = META.hcp || {}; META.hcp[wk] = META.hcp[wk] || {};
+    if (v == null || v < 0) delete META.hcp[wk][p]; else META.hcp[wk][p] = v;
+    queueHcSave(); return;
+  }
+  if (!t.dataset || !t.dataset.hcf) return;
+  const wk = t.dataset.wk, f = t.dataset.hcf, v = t.value.trim() === '' ? null : num(t.value);
+  const h0 = META.hc[wk]; META.hc[wk] = (h0 && HC_FIELDS.some(([k]) => k in h0)) ? h0 : {};
+  if (v == null || v < 0) delete META.hc[wk][f]; else META.hc[wk][f] = v;
+  queueHcSave();
+});
+document.addEventListener('click', async e => {
+  const g = e.target.closest('[data-grant],[data-deny],#logoutBtn'); if (!g) return;
+  if (g.id === 'logoutBtn'){ await firebase.auth().signOut(); location.reload(); return; }
+  try {
+    if (g.dataset.grant){ await store.fb.ref().update({ ['roles/' + g.dataset.grant]: g.dataset.r, ['requests/' + g.dataset.grant]: null }); toast('Přístup přidělen'); }
+    if (g.dataset.deny){ await store.fb.ref('requests/' + g.dataset.deny).remove(); toast('Žádost zamítnuta'); }
+  } catch(err){ toast('Nepodařilo se: ' + err.message); }
+  renderUsers();
+});
+document.addEventListener('change', async e => {
+  if (e.target.dataset && e.target.dataset.role !== undefined && store.mode === 'fb'){
+    const uid = e.target.dataset.role, v = e.target.value;
+    try { await store.fb.ref('roles/' + uid).set(v || null); toast(v ? 'Role změněna' : 'Přístup odebrán'); } catch(err){ toast('Nepodařilo se: ' + err.message); }
+    renderUsers(); return;
+  }
+  if (e.target.dataset && e.target.dataset.hcf){ UI.hcOpen = true; renderAll(); return; }
+  if (e.target.dataset && e.target.dataset.hcp){
+    const t = e.target, tr = t.closest('tr'), n = num(t.value), h = +t.dataset.h;
+    const hpp = n ? h / n : null, r = n ? hcRag(hpp) : (h > 0 ? { cls:'warn', label:'DOPLNIT' } : { cls:'neutral', label:'–' });
+    tr.children[3].textContent = fmt(hpp, 1);
+    tr.children[4].innerHTML = `<span class="tag ${r.cls}">${r.label}</span>`;
+    clearTimeout(window._hcpR); window._hcpR = setTimeout(() => { if (!document.activeElement || !document.activeElement.dataset || !document.activeElement.dataset.hcp){ renderAll(); } }, 1500);
+    return;
+  }
+  if (e.target.id === 'reportWk'){ UI.reportWk = e.target.value; renderReportPanel(); return; }
+  if (e.target.id === 'pmEmail'){ META.pmEmail = e.target.value.trim(); await safeSave(() => store.saveMeta()); renderReportPanel(); return; }
+  if (e.target.id === 'curSel'){ META.cur = e.target.value; if (await safeSave(() => store.saveMeta())) toast('Měna: ' + META.cur); renderAll(); return; }
+  if (e.target.id === 'projSel'){ UI.proj = e.target.value; renderPrehled(); }
+  if (e.target.id === 'fileInput'){ await handleFiles(e.target.files); e.target.value = ''; }
+  if (e.target.id === 'restoreInput' && e.target.files[0]){
+    try{
+      const j = JSON.parse(await e.target.files[0].text());
+      if (!j.meta || !j.rows) throw new Error('Neplatný formát zálohy');
+      const months = new Set([...Object.keys(ROWS), ...Object.keys(j.rows)].map(k => k.slice(0,7)));
+      ROWS = j.rows; META = Object.assign(metaDefaults(), j.meta);
+      if (await safeSave(async () => { await store.saveMonths([...months]); await store.saveMeta(); })) toast('Záloha obnovena');
+      renderAll();
+    }catch(err){ toast('Obnova selhala: ' + err.message); }
+    e.target.value = '';
+  }
+});
+const drop = $('drop');
+['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => handleFiles(e.dataTransfer.files));
+
+/* ===================== 10. Init ===================== */
+(async () => {
+  renderAll();
+  await store.init();
+  const d = await store.load();
+  if (d.meta) META = Object.assign(metaDefaults(), d.meta);
+  ROWS = d.rows || {};
+  if (store.mode === 'fb'){ $('logoutBtn').hidden = false; store.listen(); }
+  renderAll();
+})().catch(e => { console.error(e); toast(e.message || String(e)); });
+</script>
+</body>
+</html>
