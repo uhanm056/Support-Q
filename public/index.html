@@ -706,6 +706,56 @@ function parseOrders(rows, fileName){
   return { type:'orders', file:fileName, list, issues };
 }
 
+// Export objednávek ze SAP (PO No · Status · SRM · Description · Date Due · Total Cost In Vendor Currency · Cost Center)
+// Kód projektu se čte z popisu, např. „end of line G463 (CZ19003) 4Q26“.
+const SAP_SPEC = {
+  po:   { any:[['po no'],['po number'],['po cislo']], req:true },
+  desc: { any:[['description'],['popis']], req:true },
+  st:   { any:[['status']], req:false },
+  srm:  { any:[['srm']], req:false },
+  due:  { any:[['date due'],['due']], req:false },
+  amt:  { any:[['vendor currency']], req:false },
+  amtB: { any:[['total cost']], not:['vendor'], req:false },
+  cc:   { any:[['cost center'],['cost centre']], req:false },
+};
+function sapProjectCode(desc){
+  const m = String(desc || '').toUpperCase().match(/CZ\s?(\d{4,5})/);
+  if (!m) return null;
+  let d = m[1];
+  if (d.length === 4){ const fixed = d.slice(0,2) + '0' + d.slice(2); return { code: 'CZ' + fixed, fixedFrom: 'CZ' + d }; }
+  return { code: 'CZ' + d };
+}
+function sapQuarterStart(desc){
+  const m = String(desc || '').match(/\b([1-4])\s*Q\s*\/?\s*(20)?(\d{2})\b/i);
+  return m ? `20${m[3]}-${String((+m[1] - 1) * 3 + 1).padStart(2,'0')}-01` : null;
+}
+function parseSapOrders(rows, fileName){
+  const h = findHeader(rows, SAP_SPEC);
+  if (!h) return null;
+  const { rowIndex, idx } = h, g = (r, k) => idx[k] != null ? r[idx[k]] : null;
+  const list = [], issues = []; let closed = 0, cancelled = 0;
+  for (const r of rows.slice(rowIndex + 1)){
+    const po = String(g(r, 'po') ?? '').trim(); if (!po) continue;
+    const st = String(g(r, 'st') ?? '').trim().toUpperCase();
+    if (st === 'X'){ cancelled++; continue; }
+    if (st === 'C'){ closed++; continue; }
+    const desc = String(g(r, 'desc') ?? '').trim();
+    const pc = sapProjectCode(desc);
+    if (!pc) issues.push(`${po}: v popisu „${desc}“ není kód projektu (CZxxxxx) – doplň projekt ručně v Objednávkách`);
+    else if (pc.fixedFrom) issues.push(`${po}: kód ${pc.fixedFrom} opraven na ${pc.code} (v SAP chybí číslice)`);
+    const amount = num(g(r, 'amt'));
+    const note = [desc, g(r, 'srm') ? 'SRM ' + g(r, 'srm') : '', g(r, 'cc') ? 'CC ' + g(r, 'cc') : ''].filter(Boolean).join(' · ');
+    list.push({ id: 'o' + Math.random().toString(36).slice(2,9), po, projects: pc ? [pc.code] : [], hours:null, amount, rd:null, rn:null,
+      from: sapQuarterStart(desc), to: toISO(g(r, 'due')), note });
+  }
+  if (!list.length) throw new Error(`Export ze SAP načten, ale není v něm žádná otevřená objednávka (uzavřených ${closed}, zrušených ${cancelled}).`);
+  const dup = {}; list.forEach(o => o.projects.forEach(p => (dup[p] = dup[p] || []).push(o.po)));
+  Object.entries(dup).filter(([, v]) => v.length > 1).forEach(([p, v]) => issues.push(`${p} má víc objednávek (${v.join(', ')}) – hodiny projektu se započítají do každé z nich`));
+  if (closed || cancelled) issues.unshift(`Přeskočeno: uzavřených (C) ${closed}, zrušených (X) ${cancelled}. Načítají se jen otevřené (O).`);
+  issues.push('Částky jsou v měně dodavatele (EUR), bez hodinové sazby – čerpání v penězích půjde spočítat po doplnění sazeb.');
+  return { type:'orders', file:fileName, list, issues };
+}
+
 /* ===================== 6. Výpočty – čisté funkce ===================== */
 function allRows(){
   return Object.entries(ROWS).map(([k, v]) => { const [d, p] = k.split('|'); return { d, p, dh: v[0], nh: v[1], t: v[0] + v[1] }; });
@@ -1529,8 +1579,8 @@ async function handleFiles(files){
   for (const f of files){
     try{
       const rows = await fileToRows(f);
-      const res = parseHours(rows, f.name) || parseOrders(rows, f.name);
-      if (!res) throw new Error('Nepoznám typ souboru. Hledám hlavičku s „Datum, Projekt, Denní hodiny, Noční hodiny“ (hodiny) nebo „Objednávka, Projekt“ (objednávky). První řádek souboru: ' + (rows[0] || []).filter(Boolean).slice(0, 8).join(' | '));
+      const res = parseHours(rows, f.name) || parseOrders(rows, f.name) || parseSapOrders(rows, f.name);
+      if (!res) throw new Error('Nepoznám typ souboru. Hledám hlavičku s „Datum, Projekt, Denní hodiny, Noční hodiny“ (hodiny), „Objednávka, Projekt“ (objednávky) nebo „PO No, Description“ (export objednávek ze SAP). První řádek souboru: ' + (rows[0] || []).filter(Boolean).slice(0, 8).join(' | '));
       UI.pending.push(res);
     }catch(err){ UI.pending.push({ file: f.name, error: err.message }); }
   }
