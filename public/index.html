@@ -310,10 +310,15 @@ const store = {
     const rolesSnap = await this.fb.ref('roles').once('value');
     const roles = rolesSnap.val() || {};
     this.role = roles[this.user.uid] || null;
+    if (!this.role && this.user.email){             // předem povolený e-mail → role bez schvalování
+      const inv = await this.fb.ref('invites/' + inviteKey(this.user.email)).once('value').then(s => s.val()).catch(() => null);
+      if (inv){ try { await this.fb.ref('roles/' + this.user.uid).set(inv); await this.fb.ref('requests/' + this.user.uid).remove().catch(() => {}); this.role = inv; } catch(e){ console.warn('invite', e); } }
+    }
     if (!this.role){
       const noAdmin = !Object.values(roles).includes('admin');
       await this.fb.ref('requests/' + this.user.uid).set({ email: this.user.email, at: new Date().toISOString() }).catch(() => {});
       showAuth('pending', { noAdmin });
+      this.fb.ref('roles/' + this.user.uid).on('value', s => { if (s.val()) location.reload(); });   // po schválení se stránka sama obnoví
       await new Promise(() => {});                       // čeká na schválení – stránka se obnoví po přidělení role
     }
     this.canWrite = this.role === 'admin' || this.role === 'editor';
@@ -477,13 +482,14 @@ function authErr(e){
     'auth/invalid-email':'Neplatný e-mail.', 'auth/too-many-requests':'Příliš mnoho pokusů – zkus to za chvíli.',
     'auth/network-request-failed':'Chyba připojení.', 'auth/api-key-not-valid.-please-pass-a-valid-api-key.':'Neplatný apiKey v konfiguraci aplikace.', 'auth/invalid-api-key':'Neplatný apiKey v konfiguraci aplikace.', 'auth/operation-not-allowed':'Ve Firebase není zapnuté přihlášení e-mailem a heslem.' })[c] || (e && e.message) || 'Chyba přihlášení.';
 }
+const inviteKey = email => String(email || '').trim().toLowerCase().replace(/\./g, ',');
 const ROLE_CZ = { admin:'správce', editor:'editor (nahrává)', viewer:'čtenář' };
 async function renderUsers(){
   const el = document.getElementById('usersAdmin'); if (!el) return;
   if (store.mode !== 'fb'){ el.closest('.card').hidden = true; return; }
   el.closest('.card').hidden = false;
   if (store.role !== 'admin'){ el.innerHTML = `<p class="small muted">Přihlášen: <b>${esc(store.user.email)}</b> · role ${ROLE_CZ[store.role] || store.role}. Správu uživatelů má jen správce.</p>`; return; }
-  const [r, u, q] = await Promise.all(['roles','users','requests'].map(k => store.fb.ref(k).once('value').then(s => s.val() || {})));
+  const [r, u, q, inv] = await Promise.all(['roles','users','requests','invites'].map(k => store.fb.ref(k).once('value').then(s => s.val() || {}).catch(() => ({}))));
   const sel = (uid, cur) => `<select data-role="${uid}">${['viewer','editor','admin'].map(x => `<option value="${x}" ${x === cur ? 'selected' : ''}>${ROLE_CZ[x]}</option>`).join('')}<option value="">— odebrat přístup —</option></select>`;
   const pend = Object.entries(q).filter(([uid]) => !r[uid]);
   el.innerHTML = `
@@ -491,6 +497,10 @@ async function renderUsers(){
       <td><button class="btn sm" data-grant="${uid}" data-r="editor">Editor</button> <button class="btn secondary sm" data-grant="${uid}" data-r="viewer">Čtenář</button> <button class="btn secondary sm" data-deny="${uid}">Zamítnout</button></td></tr>`).join('')}</tbody></table>` : '<p class="small muted">Žádné nové žádosti o přístup.</p>'}
     <h3 style="margin-top:1rem">Uživatelé s přístupem</h3>
     <table><tbody>${Object.entries(r).map(([uid, role]) => `<tr><td>${esc((u[uid] && u[uid].email) || uid)}${uid === store.user.uid ? ' <span class="tag info">TY</span>' : ''}</td><td>${uid === store.user.uid ? ROLE_CZ[role] : sel(uid, role)}</td><td class="small muted">${u[uid] && u[uid].lastLogin ? 'naposledy ' + new Date(u[uid].lastLogin).toLocaleDateString('cs-CZ') : ''}</td></tr>`).join('')}</tbody></table>
+    <h3 style="margin-top:1rem">Předem povolené e-maily</h3>
+    <p class="small muted">Kdo je na seznamu, dostane roli hned po registraci – bez schvalování.</p>
+    <div class="row" style="gap:.5rem;flex-wrap:wrap"><input id="invEmail" type="email" placeholder="jmeno@firma.cz" style="min-width:240px"><select id="invRole"><option value="editor">${ROLE_CZ.editor}</option><option value="viewer">${ROLE_CZ.viewer}</option></select><button class="btn sm" id="invAdd">Povolit</button></div>
+    ${Object.keys(inv).length ? `<table style="margin-top:.5rem"><tbody>${Object.entries(inv).map(([k, role]) => `<tr><td>${esc(k.replace(/,/g, '.'))}</td><td>${ROLE_CZ[role] || role}</td><td><button class="btn secondary sm" data-invdel="${esc(k)}">Odebrat</button></td></tr>`).join('')}</tbody></table>` : ''}
     <p class="small muted">Editor = Support Q (nahrává reporty, vyplňuje headcount). Čtenář = kolegové (jen prohlíží). Správce = vše včetně schvalování.</p>`;
 }
 
@@ -1787,11 +1797,17 @@ document.addEventListener('input', e => {
   queueHcSave();
 });
 document.addEventListener('click', async e => {
-  const g = e.target.closest('[data-grant],[data-deny],#logoutBtn'); if (!g) return;
+  const g = e.target.closest('[data-grant],[data-deny],[data-invdel],#invAdd,#logoutBtn'); if (!g) return;
   if (g.id === 'logoutBtn'){ await firebase.auth().signOut(); location.reload(); return; }
   try {
     if (g.dataset.grant){ await store.fb.ref().update({ ['roles/' + g.dataset.grant]: g.dataset.r, ['requests/' + g.dataset.grant]: null }); toast('Přístup přidělen'); }
     if (g.dataset.deny){ await store.fb.ref('requests/' + g.dataset.deny).remove(); toast('Žádost zamítnuta'); }
+    if (g.dataset.invdel){ await store.fb.ref('invites/' + g.dataset.invdel).remove(); toast('E-mail odebrán ze seznamu'); }
+    if (g.id === 'invAdd'){
+      const em = $('invEmail').value.trim();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){ toast('Zadej platný e-mail.'); return; }
+      await store.fb.ref('invites/' + inviteKey(em)).set($('invRole').value); toast('Povoleno: ' + em);
+    }
   } catch(err){ toast('Nepodařilo se: ' + err.message); }
   renderUsers();
 });

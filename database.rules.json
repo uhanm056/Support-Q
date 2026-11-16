@@ -3,7 +3,7 @@
     "roles": {
       ".read": "auth != null",
       "$uid": {
-        ".write": "auth != null && (root.child('roles').child(auth.uid).val() === 'admin' || (auth.uid === $uid && !root.child('roles').exists() && newData.val() === 'admin'))",
+        ".write": "auth != null && (root.child('roles').child(auth.uid).val() === 'admin' || (auth.uid === $uid && !root.child('roles').exists() && newData.val() === 'admin') || (auth.uid === $uid && !data.exists() && auth.token.email != null && root.child('invites').child(auth.token.email.toLowerCase().replace('.', ',')).val() === newData.val()))",
         ".validate": "!newData.exists() || newData.val() === 'admin' || newData.val() === 'editor' || newData.val() === 'viewer'"
       }
     },
@@ -23,6 +23,14 @@
     "sq": {
       ".read": "auth != null && root.child('roles').child(auth.uid).exists()",
       ".write": "auth != null && (root.child('roles').child(auth.uid).val() === 'admin' || root.child('roles').child(auth.uid).val() === 'editor')"
+    },
+    "invites": {
+      ".read": "auth != null && root.child('roles').child(auth.uid).val() === 'admin'",
+      ".write": "auth != null && root.child('roles').child(auth.uid).val() === 'admin'",
+      "$key": {
+        ".read": "auth != null && auth.token.email != null && auth.token.email.toLowerCase().replace('.', ',') === $key",
+        ".validate": "newData.val() === 'editor' || newData.val() === 'viewer'"
+      }
     }
   }
 }
