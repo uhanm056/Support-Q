@@ -39,7 +39,7 @@ h1{font-size:1.5rem} h2{font-size:1.1rem;margin-top:.25rem}
 .rail .spacer{flex:1}
 .rail .meta{font-size:.75rem;opacity:.75;padding:.5rem .75rem;line-height:1.4}
 
-main{flex:1;padding:1.25rem;max-width:1400px;width:100%;min-width:0}
+main{flex:1;padding:1.25rem 1.5rem;width:100%;min-width:0}
 section[data-view]{display:none} section[data-view].active{display:block}
 .head{display:flex;flex-wrap:wrap;align-items:center;gap:.75rem;justify-content:space-between;margin-bottom:.75rem}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:1rem;margin-bottom:1rem}
@@ -147,6 +147,7 @@ details summary{cursor:pointer;font-weight:600;margin:.25rem 0}
 .mv-bar i.crit{background:var(--crit)} .mv-bar i.good{background:var(--good)}
 .mv-v{text-align:right;font-weight:600} .mv-v small{display:block;font-weight:400;color:var(--muted);font-size:.72rem}
 
+@media (min-width:1600px){ .kt-grid{grid-template-columns:repeat(6,minmax(0,1fr))} }
 @media (max-width:1100px){ .kt-grid{grid-template-columns:repeat(2,minmax(0,1fr))} }
 @media (max-width:600px){ .kt-grid{grid-template-columns:minmax(0,1fr)} }
 @media (max-width:900px){ .two{grid-template-columns:minmax(0,1fr)} }
@@ -315,11 +316,13 @@ const store = {
     this.fb.ref('sq').on('value', snap => {
       if (first){ first = false; return; }
       const v = snap.val() || {};
+      // během ukládání (měsíce → meta) neaplikovat mezistav, jinak by se přepsalo lokální META starou verzí
+      if (store._saving){ store._pending = v; return; }
       const a = document.activeElement;
       if (a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT')){ store._pending = v; return; }
       applyRemote(v);
     });
-    document.addEventListener('focusout', () => setTimeout(() => { const a = document.activeElement; if (store._pending && !(a && /INPUT|TEXTAREA|SELECT/.test(a.tagName))){ const v = store._pending; store._pending = null; applyRemote(v); } }, 300));
+    document.addEventListener('focusout', () => setTimeout(() => { const a = document.activeElement; if (store._pending && !store._saving && !(a && /INPUT|TEXTAREA|SELECT/.test(a.tagName))){ const v = store._pending; store._pending = null; applyRemote(v); } }, 300));
   },
   async load(){
     try{
@@ -378,6 +381,7 @@ const store = {
   }
 };
 async function safeSave(fn){
+  store._saving = (store._saving || 0) + 1;
   try { await fn(); return true; }
   catch(e){
     console.warn(e);
@@ -387,6 +391,10 @@ async function safeSave(fn){
     else if (code === 'quota_exceeded') toast('Úložiště je plné – smaž staré měsíce v Metodice.');
     else toast('Uložení selhalo: ' + (e && e.message || e));
     return false;
+  }
+  finally{
+    store._saving--;
+    if (!store._saving && store._pending){ const a = document.activeElement; if (!(a && /INPUT|TEXTAREA|SELECT/.test(a.tagName))){ const v = store._pending; store._pending = null; applyRemote(v); } }
   }
 }
 
@@ -797,11 +805,13 @@ function emptyState(msg){
 }
 async function quickImport(files){ if (!files || !files.length) return; go('import'); await handleFiles(files); }
 
+// šířka grafu podle dostupného místa – výška zůstává stejná i na širokém monitoru
+const chartW = () => Math.min(1800, Math.max(0, ((document.querySelector('main') || {}).clientWidth || 1000) - 90));
 function trendChart(rows, proj){
   const wks = weeksList();
   if (!wks.length) return '';
   const data = wks.map(w => { const s = weekSum(rows.filter(r => !proj || r.p === proj), w); return { w, ...s, cov: weekCovered(w) }; });
-  const W = Math.max(720, wks.length * 64), H = 230, pad = { l:46, r:10, t:22, b:40 };
+  const W = Math.max(720, chartW(), wks.length * 64), H = 230, pad = { l:46, r:10, t:22, b:40 };
   const max = Math.max(1, ...data.map(d => d.t)) * 1.12;
   const bw = (W - pad.l - pad.r) / data.length, y = v => pad.t + (H - pad.t - pad.b) * (1 - v / max);
   let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Trend hodin po týdnech">`;
@@ -985,7 +995,7 @@ function kpiTile({ lbl, val, unit, c, prevTxt, spark, hint }){
 }
 function comboChart(wks){
   const M = wks.map(weekMetrics);
-  const W = Math.max(720, wks.length * 78), H = 260, pad = { l:48, r:44, t:26, b:44 };
+  const W = Math.max(720, chartW(), wks.length * 78), H = 260, pad = { l:48, r:44, t:26, b:44 };
   const max = Math.max(1, ...M.map(d => d.t)) * 1.15, hmax = Math.max(1, ...M.map(d => d.hc || 0)) * 1.6;
   const bw = (W - pad.l - pad.r) / M.length, y = v => pad.t + (H - pad.t - pad.b) * (1 - v / max), yh = v => pad.t + (H - pad.t - pad.b) * (1 - v / hmax);
   let g = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Hodiny a headcount po týdnech">`;
@@ -1729,6 +1739,8 @@ drop.addEventListener('drop', e => handleFiles(e.dataTransfer.files));
 ['dragenter','dragover'].forEach(ev => document.addEventListener(ev, e => { const q = e.target.closest && e.target.closest('.drop.quick'); if (q){ e.preventDefault(); q.classList.add('over'); } }));
 ['dragleave','drop'].forEach(ev => document.addEventListener(ev, e => { const q = e.target.closest && e.target.closest('.drop.quick'); if (q){ e.preventDefault(); q.classList.remove('over'); } }));
 document.addEventListener('drop', e => { const q = e.target.closest && e.target.closest('.drop.quick'); if (q) quickImport(e.dataTransfer.files); });
+
+{ let rz, lastW = window.innerWidth; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if (Math.abs(window.innerWidth - lastW) > 60){ lastW = window.innerWidth; const a = document.activeElement; if (!(a && /INPUT|TEXTAREA|SELECT/.test(a.tagName))) renderAll(); } }, 250); }); }
 
 /* ===================== 10. Init ===================== */
 (async () => {
