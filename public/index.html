@@ -718,6 +718,16 @@ const SAP_SPEC = {
   amtB: { any:[['total cost']], not:['vendor'], req:false },
   cc:   { any:[['cost center'],['cost centre']], req:false },
 };
+// Smluvní sazby Support Q (EUR/h) – kategorie se odvodí z popisu PO; noční sazba = denní, dokud není jinak.
+const SQ_RATES = [
+  { cat:'Koordinátor', rate:23,   re:/coordin|\bcoor\b|koord/i },
+  { cat:'Administrativa', rate:20, re:/admin/i },
+  { cat:'Resident',    rate:44,   re:/resident/i },
+  { cat:'Rework Gaden', rate:33,  re:/rework|gaden/i },
+  { cat:'Projektový manažer', rate:26, re:/\bMAN\b/ },
+  { cat:'Operátor',    rate:16.5, re:/end of line/i },
+];
+const sapRate = desc => SQ_RATES.find(x => x.re.test(String(desc || ''))) || null;
 function sapProjectCode(desc){
   const m = String(desc || '').toUpperCase().match(/CZ\s?(\d{4,5})/);
   if (!m) return null;
@@ -733,7 +743,7 @@ function parseSapOrders(rows, fileName){
   const h = findHeader(rows, SAP_SPEC);
   if (!h) return null;
   const { rowIndex, idx } = h, g = (r, k) => idx[k] != null ? r[idx[k]] : null;
-  const list = [], issues = []; let closed = 0, cancelled = 0;
+  const list = [], issues = [], cats = {}; let closed = 0, cancelled = 0;
   for (const r of rows.slice(rowIndex + 1)){
     const po = String(g(r, 'po') ?? '').trim(); if (!po) continue;
     const st = String(g(r, 'st') ?? '').trim().toUpperCase();
@@ -744,16 +754,18 @@ function parseSapOrders(rows, fileName){
     if (!pc) issues.push(`${po}: v popisu „${desc}“ není kód projektu (CZxxxxx) – doplň projekt ručně v Objednávkách`);
     else if (pc.fixedFrom) issues.push(`${po}: kód ${pc.fixedFrom} opraven na ${pc.code} (v SAP chybí číslice)`);
     const amount = num(g(r, 'amt'));
-    const note = [desc, g(r, 'srm') ? 'SRM ' + g(r, 'srm') : '', g(r, 'cc') ? 'CC ' + g(r, 'cc') : ''].filter(Boolean).join(' · ');
-    list.push({ id: 'o' + Math.random().toString(36).slice(2,9), po, projects: pc ? [pc.code] : [], hours:null, amount, rd:null, rn:null,
+    const rt = pc ? sapRate(desc) : null;
+    if (rt) cats[rt.cat] = (cats[rt.cat] || 0) + 1; else if (pc) issues.push(`${po}: z popisu „${desc}“ nejde určit kategorii sazby – doplň sazbu ručně`);
+    const note = [desc, rt ? `sazba ${rt.cat} ${String(rt.rate).replace('.', ',')} €/h` : '', g(r, 'srm') ? 'SRM ' + g(r, 'srm') : '', g(r, 'cc') ? 'CC ' + g(r, 'cc') : ''].filter(Boolean).join(' · ');
+    list.push({ id: 'o' + Math.random().toString(36).slice(2,9), po, projects: pc ? [pc.code] : [], hours:null, amount, rd: rt ? rt.rate : null, rn:null,
       from: sapQuarterStart(desc), to: toISO(g(r, 'due')), note });
   }
   if (!list.length) throw new Error(`Export ze SAP načten, ale není v něm žádná otevřená objednávka (uzavřených ${closed}, zrušených ${cancelled}).`);
   const dup = {}; list.forEach(o => o.projects.forEach(p => (dup[p] = dup[p] || []).push(o.po)));
   Object.entries(dup).filter(([, v]) => v.length > 1).forEach(([p, v]) => issues.push(`${p} má víc objednávek (${v.join(', ')}) – hodiny projektu se započítají do každé z nich`));
   if (closed || cancelled) issues.unshift(`Přeskočeno: uzavřených (C) ${closed}, zrušených (X) ${cancelled}. Načítají se jen otevřené (O).`);
-  issues.push('Částky jsou v měně dodavatele (EUR), bez hodinové sazby – čerpání v penězích půjde spočítat po doplnění sazeb.');
-  return { type:'orders', file:fileName, list, issues };
+  if (Object.keys(cats).length) issues.push('Sazby podle kategorie z popisu PO (EUR/h, noc = den): ' + SQ_RATES.filter(x => cats[x.cat]).map(x => `${x.cat} ${String(x.rate).replace('.', ',')} (${cats[x.cat]}×)`).join(' · ') + ' – ověř, případně uprav v Objednávkách.');
+  return { type:'orders', sap:true, file:fileName, list, issues };
 }
 
 /* ===================== 6. Výpočty – čisté funkce ===================== */
@@ -1603,7 +1615,15 @@ async function commitPending(i){
     const ok = await safeSave(async () => { await store.saveMonths([...touched]); await store.saveMeta(); });
     if (ok){ toast(`Uloženo: ${fmtDY(x.from)} – ${fmtDY(x.to)}, ${fmt(t)} h`); UI.month = x.to.slice(0,7); UI.week = null; UI.trendWk = null; UI.reportWk = null; UI.hcOpen = false; }
   } else {
-    for (const o of x.list){ const ex = META.orders.find(m => m.po === o.po); if (ex) Object.assign(ex, { ...o, id: ex.id }); else META.orders.push(o); }
+    for (const o of x.list){
+      const ex = META.orders.find(m => m.po === o.po);
+      if (!ex){ META.orders.push(o); continue; }
+      if (x.sap){ // opakovaný export ze SAP: aktualizuj částku a platnost, ruční úpravy projektů a sazeb zachovej
+        Object.assign(ex, { amount: o.amount, from: o.from ?? ex.from, to: o.to ?? ex.to, note: o.note });
+        if (!(ex.projects || []).length) ex.projects = o.projects;
+        if (ex.rd == null) ex.rd = o.rd;
+      } else Object.assign(ex, { ...o, id: ex.id });
+    }
     META.imports.push({ at: new Date().toISOString(), file: x.file, type:'orders' });
     if (await safeSave(() => store.saveMeta())) toast(`Uloženo ${x.list.length} objednávek`);
   }
