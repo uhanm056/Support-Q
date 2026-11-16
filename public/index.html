@@ -1440,6 +1440,22 @@ function renderTydny(){
   <p class="small muted">⚠ u dne = den není pokrytý žádným importem (neznamená nulu). Δ se počítá jen mezi dvěma úplnými týdny.</p>`;
 }
 
+// Detail projektů, které nemají objednávku: popis z docházky, hodiny den/noc, období, odhad nákladů při sazbě operátora
+function noOrderTable(list, rows){
+  const opRate = (SQ_RATES.find(x => x.cat === 'Operátor') || {}).rate;
+  const tr = list.map(p => {
+    const pr = rows.filter(r => r.p === p), s = sum(pr), ds = pr.map(r => r.d).sort();
+    const m = META.projects[p] || {}, wks = [...new Set(ds.map(isoWeek))].map(w => 'CW' + w.slice(-2)).join(', ');
+    const desc = [m.d, m.n].filter(Boolean).map(esc).join('<br><span class="muted small">') + (m.d && m.n ? '</span>' : '');
+    return `<tr><td class="mono">${esc(p)}</td><td class="desc">${desc || '<span class="muted small">popis přijde s dalším importem docházky</span>'}</td>
+      <td class="num">${fmt(s.t)} h<br><span class="muted small">den ${fmt(s.dh)} · noc ${fmt(s.nh)}</span></td>
+      <td class="small">${fmtDY(ds[0])} – ${fmtDY(ds.at(-1))}<br><span class="muted">${wks}</span></td>
+      <td class="num">${opRate ? '≈ ' + fmtKc(s.dh * opRate + s.nh * opRate) : '–'}</td>
+      <td>${store.canWrite ? `<button class="btn sm secondary" data-neworder="${esc(p)}">+ Objednávka</button>` : ''}</td></tr>`;
+  }).join('');
+  return `<div class="tbl-wrap"><table><thead><tr><th>Projekt</th><th>Popis</th><th class="num">Hodiny</th><th>Období</th><th class="num">Odhad nákladů</th><th></th></tr></thead><tbody>${tr}</tbody></table></div>
+    <div class="small muted" style="margin-top:.4rem">Odhad nákladů = hodiny × sazba operátora ${String(opRate).replace('.', ',')} €/h (bez objednávky není smluvní sazba známá).</div>`;
+}
 function orderForm(o){
   o = o || { po:'', projects:[], hours:null, amount:null, rd:null, rn:null, from:'', to:'', note:'' };
   const v = x => x == null ? '' : x;
@@ -1462,7 +1478,7 @@ function orderForm(o){
 
 function renderBudget(){
   $('newOrderBtn').disabled = !store.canWrite;
-  $('orderFormWrap').innerHTML = UI.editOrder ? orderForm(UI.editOrder === 'new' ? null : META.orders.find(o => o.id === UI.editOrder)) : '';
+  $('orderFormWrap').innerHTML = UI.editOrder ? orderForm(UI.editOrder === 'new' ? (UI.newOrderProj ? { po:'', projects:[UI.newOrderProj], hours:null, amount:null, rd:null, rn:null, from:'', to:'', note:'' } : null) : META.orders.find(o => o.id === UI.editOrder)) : '';
   const el = $('budgetBody');
   const rows = allRows();
   if (!META.orders.length){
@@ -1502,7 +1518,7 @@ function renderBudget(){
   const outside = allP.map(p => { const pr = rows.filter(r => r.p === p && META.orders.some(o => o.projects.includes(p)) && !orderFor(p, r.d).length); return { p, t: sum(pr).t }; }).filter(x => x.t > 0);
   const ovl = overlaps();
   el.innerHTML += `<div class="two" style="margin-top:1rem">
-    <div class="card"><h2>Projekty bez objednávky</h2>${noOrd.length ? `<table><tbody>${noOrd.map(p => `<tr><td class="mono">${esc(p)}</td><td class="desc">${esc(pname(p))}</td><td class="num">${fmt(sum(rows.filter(r => r.p === p)).t)} h</td></tr>`).join('')}</tbody></table>` : '<div class="okbox">Všechny vykázané projekty mají objednávku.</div>'}</div>
+    <div class="card" style="grid-column:1/-1"><h2>Projekty bez objednávky</h2>${noOrd.length ? noOrderTable(noOrd, rows) : '<div class="okbox">Všechny vykázané projekty mají objednávku.</div>'}</div>
     <div class="card"><h2>Hodiny mimo platnost objednávky</h2>${outside.length ? `<table><tbody>${outside.map(x => `<tr><td class="mono">${esc(x.p)}</td><td class="desc">${esc(pname(x.p))}</td><td class="num">${fmt(x.t)} h</td></tr>`).join('')}</tbody></table>` : '<div class="okbox">Žádné.</div>'}
     ${ovl.length ? `<div class="critbox"><b>Překryv objednávek:</b> ${ovl.map(esc).join('; ')}</div>` : ''}</div></div>`;
 }
@@ -1649,7 +1665,7 @@ async function saveOrderForm(){
   if (o.from && o.to && o.from > o.to){ toast('Platnost od je po platnosti do.'); return; }
   if (UI.editOrder && UI.editOrder !== 'new'){ const ex = META.orders.find(m => m.id === UI.editOrder); Object.assign(ex, o); }
   else META.orders.push({ id: 'o' + Math.random().toString(36).slice(2,9), ...o });
-  if (await safeSave(() => store.saveMeta())){ toast('Objednávka uložena'); UI.editOrder = null; }
+  if (await safeSave(() => store.saveMeta())){ toast('Objednávka uložena'); UI.editOrder = null; UI.newOrderProj = null; }
   renderAll();
 }
 
@@ -1672,7 +1688,7 @@ $('themeBtn').addEventListener('click', () => {
 try { const th = localStorage.getItem('sq.theme'); if (th) document.documentElement.dataset.theme = th; } catch(e){}
 
 document.addEventListener('click', async e => {
-  const t = e.target.closest('#demoDel,[data-twk],#reportBtn,#reportClose,#reportCopy,#reportCopyHtml,#reportEml,#reportXlsx,#reportCsv,[data-hccopy],[data-month],[data-week],[data-sort],[data-commit],[data-drop],[data-edit],[data-del],[data-delmonth],#newOrderBtn,#saveOrder,#cancelOrder,#exportMonth,#backupBtn');
+  const t = e.target.closest('#demoDel,[data-twk],#reportBtn,#reportClose,#reportCopy,#reportCopyHtml,#reportEml,#reportXlsx,#reportCsv,[data-hccopy],[data-month],[data-week],[data-sort],[data-commit],[data-drop],[data-edit],[data-del],[data-delmonth],[data-neworder],#newOrderBtn,#saveOrder,#cancelOrder,#exportMonth,#backupBtn');
   if (!t) return;
   if (t.id === 'demoDel'){
     if (t.dataset.confirm !== '1'){ t.dataset.confirm = '1'; t.textContent = 'Opravdu smazat ukázková data?'; return; }
@@ -1743,7 +1759,8 @@ document.addEventListener('click', async e => {
     if (await safeSave(async () => { await store.saveMonths([mk]); await store.saveMeta(); })) toast('Smazáno: ' + monthName(mk));
     renderAll();
   }
-  else if (t.id === 'newOrderBtn'){ UI.editOrder = 'new'; renderBudget(); }
+  else if (t.id === 'newOrderBtn'){ UI.editOrder = 'new'; UI.newOrderProj = null; renderBudget(); }
+  else if (t.dataset.neworder){ UI.editOrder = 'new'; UI.newOrderProj = t.dataset.neworder; renderBudget(); window.scrollTo(0, 0); }
   else if (t.id === 'saveOrder'){ await saveOrderForm(); }
   else if (t.id === 'cancelOrder'){ UI.editOrder = null; renderBudget(); }
   else if (t.id === 'exportMonth'){ exportMonthCsv(); }
