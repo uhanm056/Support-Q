@@ -269,6 +269,15 @@ let ROWS = {};          // "YYYY-MM-DD|PROJ" -> [denní, noční]
 const PM_EMAIL_DEFAULT = 'milan.hanus@yanfeng.com';
 const metaDefaults = () => ({ projects:{}, orders:[], imports:[], cov:[], hc:{}, hcp:{}, cur:'EUR', pmEmail:PM_EMAIL_DEFAULT });
 let META = metaDefaults();
+// Firebase RTDB neukládá prázdná pole ani null hodnoty a řídká pole vrací jako objekt – po načtení vše dorovnat.
+const asArr = v => Array.isArray(v) ? v.filter(x => x != null) : (v && typeof v === 'object' ? Object.values(v) : []);
+function normMeta(m){
+  const x = Object.assign(metaDefaults(), m || {});
+  x.cov = asArr(x.cov); x.imports = asArr(x.imports);
+  x.orders = asArr(x.orders).map(o => ({ hours:null, amount:null, rd:null, rn:null, from:null, to:null, note:'', ...o, projects: asArr(o.projects) }));
+  for (const k of ['projects','hc','hcp']) if (!x[k] || typeof x[k] !== 'object') x[k] = {};
+  return x;
+}
 let UI = { month:null, week:null, proj:'', sort:{k:'t',dir:-1}, editOrder:null, pending:[] };
 
 /* ===================== 3. Perzistence – odstíněná vrstva ===================== */
@@ -405,7 +414,7 @@ function fbToData(v){
 }
 function applyRemote(v){
   const d = fbToData(v);
-  META = Object.assign(metaDefaults(), d.meta || {});
+  META = normMeta(d.meta);
   ROWS = d.rows;
   renderAll();
 }
@@ -1795,7 +1804,7 @@ document.addEventListener('change', async e => {
       const j = JSON.parse(await e.target.files[0].text());
       if (!j.meta || !j.rows) throw new Error('Neplatný formát zálohy');
       const months = new Set([...Object.keys(ROWS), ...Object.keys(j.rows)].map(k => k.slice(0,7)));
-      ROWS = j.rows; META = Object.assign(metaDefaults(), j.meta);
+      ROWS = j.rows; META = normMeta(j.meta);
       if (await safeSave(async () => { await store.saveMonths([...months]); await store.saveMeta(); })) toast('Záloha obnovena');
       renderAll();
     }catch(err){ toast('Obnova selhala: ' + err.message); }
@@ -1817,7 +1826,7 @@ document.addEventListener('drop', e => { const q = e.target.closest && e.target.
   renderAll();
   await store.init();
   const d = await store.load();
-  if (d.meta) META = Object.assign(metaDefaults(), d.meta);
+  if (d.meta) META = normMeta(d.meta);
   ROWS = d.rows || {};
   if (store.mode === 'fb'){ $('logoutBtn').hidden = false; store.listen(); }
   renderAll();
