@@ -787,8 +787,15 @@ const $ = id => document.getElementById(id);
 const pname = p => { const m = META.projects[p]; return (m && (m.n || m.d)) || ''; };
 
 function emptyState(msg){
-  return `<div class="card empty"><div class="big">📂</div>${msg}<br><br><button class="btn" onclick="go('import')">Přejít na Import</button></div>`;
+  if (!store.canWrite) return `<div class="card empty"><div class="big">📂</div>${msg}</div>`;
+  return `<div class="card"><div class="drop quick">
+    <div class="big" style="font-size:2.4rem">📥</div>
+    ${msg}<br><br>
+    <b>Přetáhni sem týdenní Přehled hodin</b> (.csv / .xlsx) nebo seznam objednávek<br>
+    <label>nebo vyber soubor<input type="file" class="quickFile" multiple hidden accept=".csv,.xlsx,.xls,.txt"></label>
+  </div></div>`;
 }
+async function quickImport(files){ if (!files || !files.length) return; go('import'); await handleFiles(files); }
 
 function trendChart(rows, proj){
   const wks = weeksList();
@@ -1004,7 +1011,7 @@ const trendWeeks = () => { const w = weeksList(); while (w.length > 1 && weekCov
 function renderTrend(){
   const el = $('trendBody');
   const wksAll = trendWeeks();
-  if (!wksAll.length){ el.innerHTML = emptyState('Zatím žádná data. Support Q nahraje týdenní report z docházky v sekci Import.'); return; }
+  if (!wksAll.length){ el.innerHTML = emptyState('Zatím žádná data. Support Q nahrává týdenní report z docházky (do úterý 12:00).'); return; }
   const rows = allRows();
   if (!UI.trendWk || !wksAll.includes(UI.trendWk)) UI.trendWk = wksAll.filter(w => weekCovered(w) === 7).at(-1) || wksAll.at(-1);
   const wk = UI.trendWk, idx = wksAll.indexOf(wk), pw = idx > 0 ? wksAll[idx - 1] : null;
@@ -1702,6 +1709,7 @@ document.addEventListener('change', async e => {
   if (e.target.id === 'curSel'){ META.cur = e.target.value; if (await safeSave(() => store.saveMeta())) toast('Měna: ' + META.cur); renderAll(); return; }
   if (e.target.id === 'projSel'){ UI.proj = e.target.value; renderPrehled(); }
   if (e.target.id === 'fileInput'){ await handleFiles(e.target.files); e.target.value = ''; }
+  if (e.target.classList.contains('quickFile')){ await quickImport(e.target.files); e.target.value = ''; }
   if (e.target.id === 'restoreInput' && e.target.files[0]){
     try{
       const j = JSON.parse(await e.target.files[0].text());
@@ -1718,6 +1726,9 @@ const drop = $('drop');
 ['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
 ['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
 drop.addEventListener('drop', e => handleFiles(e.dataTransfer.files));
+['dragenter','dragover'].forEach(ev => document.addEventListener(ev, e => { const q = e.target.closest && e.target.closest('.drop.quick'); if (q){ e.preventDefault(); q.classList.add('over'); } }));
+['dragleave','drop'].forEach(ev => document.addEventListener(ev, e => { const q = e.target.closest && e.target.closest('.drop.quick'); if (q){ e.preventDefault(); q.classList.remove('over'); } }));
+document.addEventListener('drop', e => { const q = e.target.closest && e.target.closest('.drop.quick'); if (q) quickImport(e.dataTransfer.files); });
 
 /* ===================== 10. Init ===================== */
 (async () => {
