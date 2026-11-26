@@ -1912,7 +1912,10 @@ const cfgStore = {
 const canCfg = () => store.mode !== 'fb' || store.role === 'admin';
 const lineMapFor = p => CFG.lineMap[p] != null ? CFG.lineMap[p] : (DEFAULT_LINEMAP[p] || []);
 const planDay = d => CFG.plan[d] ? Object.fromEntries(CFG.plan[d].l) : null;
-function planWeeks(){ return [...new Set(Object.keys(CFG.plan).filter(d => CFG.plan[d].main).map(isoWeek))].sort(); }
+// Týden do plánu: hlavní týden souboru, nebo výhled dalšího týdne (soubor CW48 obsahuje i Po–So CW49), pokud má aspoň 5 dní
+function planWeeks(){ const c = {}; Object.keys(CFG.plan).forEach(d => { const w = isoWeek(d); c[w] = (c[w] || 0) + 1; }); return Object.keys(c).filter(w => c[w] >= 5 || weekDates(w).some(d => CFG.plan[d] && CFG.plan[d].main)).sort(); }
+const planIsPreview = wk => !weekDates(wk).some(d => CFG.plan[d] && CFG.plan[d].main);
+const planDaysOf = wk => weekDates(wk).filter(d => CFG.plan[d]).length;
 function planLinesOf(wk){ const s = new Set(); weekDates(wk).forEach(d => (CFG.plan[d] ? CFG.plan[d].l : []).forEach(([n]) => s.add(n))); return [...s]; }
 function dayShifts(p, d){ // [M, A, N] – jede aspoň jedna linka projektu
   const pd = planDay(d); if (!pd) return null;
@@ -1992,7 +1995,7 @@ function planPreview(x, i){
   return `<div class="card"><div class="row" style="justify-content:space-between"><b>📄 ${esc(x.file)} <span class="tag info">PLÁN VÝROBY</span></b></div>
     <div class="grid-kpi" style="margin-top:.6rem">
       <div class="kpi"><div class="lbl">Týden</div><div class="val">${cw(x.wk)}</div><div class="sub">${fmtDY(mainDays[0].iso)} – ${fmtDY(mainDays.at(-1).iso)}</div></div>
-      <div class="kpi"><div class="lbl">Linek</div><div class="val">${x.lines.length}</div><div class="sub">${x.days.length - mainDays.length ? `+ ${x.days.length - mainDays.length} dní výhledu dalšího týdne` : ''}</div></div>
+      <div class="kpi"><div class="lbl">Linek</div><div class="val">${x.lines.length}</div><div class="sub">${x.days.length - mainDays.length ? `+ ${x.days.length - mainDays.length} dní výhledu ${cw(isoWeek(x.days.at(-1).iso))} – použije se pro plánování lidí` : ''}</div></div>
       <div class="kpi"><div class="lbl">Směn s výrobou</div><div class="val">${shifts}</div><div class="sub">ranní / odpolední / noční</div></div>
     </div>
     ${exists ? `<div class="warnbox">Plán pro ${cw(x.wk)} už v aplikaci je – uložením se přepíše.</div>` : ''}
@@ -2038,7 +2041,8 @@ function planForward(wk, pw, L, O, ls, lsp, shT, shP, allP, lineNames){
     const a = ls[n] || 0, b = lsp ? (lsp[n] || 0) : null, used = allP.some(p => lineMapFor(p).includes(n)) || Object.keys(DEFAULT_LINEMAP).some(p => lineMapFor(p).includes(n));
     return `<tr><td>${esc(n)}${used ? ' <span class="tag info">SQ</span>' : ''}</td><td>${cells}</td><td class="num">${b ?? '–'}</td><td class="num"><b>${a}</b></td><td class="num">${b != null && a !== b ? `<span class="tag ${a > b ? 'good' : 'crit'}">${a > b ? '+' : ''}${a - b}</span>` : ''}</td></tr>`;
   }).join('');
-  return `<div class="okbox"><b>Plán na ${cw(wk)}</b> (${fmtDY(ds[0])} – ${fmtDY(ds[6])}) – docházka za tento týden ještě není. Níže je, kolik lidí má Support Q nasadit podle plánu výroby. Po nahrání docházky se tu objeví porovnání se skutečností.</div>
+  const prevNote = planIsPreview(wk) ? `<div class="warnbox">Plán ${cw(wk)} je zatím <b>výhled</b> ze souboru ${esc((CFG.plan[ds.find(d => CFG.plan[d])] || {}).src || '')} (${planDaysOf(wk)}/7 dní${planDaysOf(wk) < 7 ? ', chybějící dny = bez výroby' : ''}). Po nahrání souboru, kde je ${cw(wk)} prvním týdnem, se přepíše.</div>` : '';
+  return `<div class="okbox"><b>Plán na ${cw(wk)}</b> (${fmtDY(ds[0])} – ${fmtDY(ds[6])}) – docházka za tento týden ještě není. Níže je, kolik lidí má Support Q nasadit podle plánu výroby. Po nahrání docházky se tu objeví porovnání se skutečností.</div>${prevNote}
     <div class="grid-kpi">
       <div class="kpi"><div class="lbl">Směny s výrobou</div><div class="val">${shT}</div><div class="sub">${shP != null ? `${cw(pw)}: ${shP} · <b>${fp(shT, shP)}</b>` : ''}</div></div>
       <div class="kpi"><div class="lbl">Budget hodin – linky</div><div class="val">${fmt(bud, 0)}<span class="small muted"> h</span></div><div class="sub">${lastAct != null ? `${cw(lastW)} skutečnost ${fmt(lastAct, 0)} h · <b>${fp(bud, lastAct)}</b>` : ''}</div></div>
@@ -2148,7 +2152,7 @@ function renderPlan(){
   }
   if (!UI.planWk || !wks.includes(UI.planWk)) UI.planWk = wks.filter(w => weekCovered(w) === 7).at(-1) || wks.at(-1);
   const wk = UI.planWk, pi = wks.indexOf(wk), pw = pi > 0 ? wks[pi - 1] : null;
-  $('planChips').innerHTML = wks.map(w => `<button class="chip ${w === wk ? 'active' : ''}" data-planwk="${w}">${cw(w)}<span class="d">${fmtD(weekDates(w)[0])}${weekCovered(w) === 0 ? ' · PLÁN' : weekCovered(w) < 7 ? ' · hodiny ' + weekCovered(w) + '/7' : ''}</span></button>`).join('');
+  $('planChips').innerHTML = wks.map(w => `<button class="chip ${w === wk ? 'active' : ''}" data-planwk="${w}">${cw(w)}<span class="d">${fmtD(weekDates(w)[0])}${weekCovered(w) === 0 ? (planIsPreview(w) ? ' · VÝHLED' : ' · PLÁN') : weekCovered(w) < 7 ? ' · hodiny ' + weekCovered(w) + '/7' : ''}</span></button>`).join('');
   const ds = weekDates(wk), dset = new Set(ds);
   const hoursP = new Set(Object.keys(ROWS).filter(k => dset.has(k.slice(0, 10))).map(k => k.slice(11)));
   const hcp = (META.hcp || {})[wk] || {};
