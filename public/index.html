@@ -1046,7 +1046,7 @@ function nowStatus(){
 }
 function renderNow(){
   const n = nowStatus(), el = $('nowBox'); if (!el) return;
-  el.innerHTML = `<div class="nowbox"><div class="nb-cw">${cw(n.curWk)}</div><div class="nb-t"><b>Dnes ${n.dayName} ${fmtDY(n.today)}</b><span class="nb-st nb-${n.st.cls}">● ${n.st.txt}</span></div></div>`;
+  el.innerHTML = `<div class="nowbox"><div class="nb-cw">${cw(n.curWk)}</div><div class="nb-t"><b>Dnes ${n.dayName} ${fmtDY(n.today)}</b><span class="nb-st nb-${n.st.cls}">● ${n.st.txt}</span>${(() => { const nw = isoWeek(addDays(n.today, 7)); if (typeof planWeeks !== 'function' || !planWeeks().includes(nw)) return ''; const st = sqPlanStatus(nw); return `<span class="nb-st nb-${st.cls}">● ${st.txt}</span>`; })()}</div></div>`;
 }
 
 /* ---------- Přehled týdne: metriky, porovnání, sparkline ---------- */
@@ -2042,7 +2042,7 @@ function planForward(wk, pw, L, O, ls, lsp, shT, shP, allP, lineNames){
     <div class="grid-kpi">
       <div class="kpi"><div class="lbl">Směny s výrobou</div><div class="val">${shT}</div><div class="sub">${shP != null ? `${cw(pw)}: ${shP} · <b>${fp(shT, shP)}</b>` : ''}</div></div>
       <div class="kpi"><div class="lbl">Budget hodin – linky</div><div class="val">${fmt(bud, 0)}<span class="small muted"> h</span></div><div class="sub">${lastAct != null ? `${cw(lastW)} skutečnost ${fmt(lastAct, 0)} h · <b>${fp(bud, lastAct)}</b>` : ''}</div></div>
-      <div class="kpi"><div class="lbl">Plán Support Q ${sqPlanOf(wk) ? '<span class="tag good">ODEVZDÁNO</span>' : '<span class="tag warn">ČEKÁ</span>'}</div><div class="val">${sqPlanOf(wk) ? fmt(Object.values(sqPlanOf(wk).p).reduce((s, d) => s + sqPlanHours(d), 0), 0) : '–'}<span class="small muted"> h</span></div><div class="sub">${sqPlanOf(wk) ? 'proti budgetu ' + fmt(bud, 0) + ' h · <b>' + fp(Object.values(sqPlanOf(wk).p).reduce((s, d) => s + sqPlanHours(d), 0), bud) + '</b>' : 'Support Q vyplní plán lidí níže'}</div></div>
+      <div class="kpi"><div class="lbl">Plán Support Q ${(st => `<span class="tag ${st.cls}">${st.tag}</span>`)(sqPlanStatus(wk))}</div><div class="val">${sqPlanOf(wk) ? fmt(Object.values(sqPlanOf(wk).p).reduce((s, d) => s + sqPlanHours(d), 0), 0) : '–'}<span class="small muted"> h</span></div><div class="sub">${sqPlanOf(wk) ? 'proti budgetu ' + fmt(bud, 0) + ' h · <b>' + fp(Object.values(sqPlanOf(wk).p).reduce((s, d) => s + sqPlanHours(d), 0), bud) + '</b>' : 'termín ' + (d => `pá ${d.getDate()}. ${d.getMonth() + 1}. ${SQ_PLAN_DL.hour}:00`)(sqDeadline(wk))}</div></div>
       <div class="kpi"><div class="lbl">Potřeba lidí – linky</div><div class="val">${fmt(heads, 1)}</div><div class="sub">budget / ${HC_NORM} h (12h model)</div></div>
       <div class="kpi"><div class="lbl">Režie bez vazby na linku</div><div class="val">${ohLast != null ? fmt(ohLast, 0) : '–'}<span class="small muted"> h</span></div><div class="sub">${lastW ? 'skutečnost ' + cw(lastW) + ' – nezávisí na plánu výroby' : ''}</div></div>
     </div>
@@ -2061,13 +2061,21 @@ function planForward(wk, pw, L, O, ls, lsp, shT, shP, allP, lineNames){
 function sqPlanOf(wk){
   const x = (META.sqPlan || {})[wk]; if (!x || !x.p) return null;
   const p = {}; for (const [k, v] of Object.entries(x.p)) p[k] = String(v).split('|').map(t => { const [d, n] = t.split(':').map(Number); return { d: d || 0, n: n || 0 }; });
-  return { at: x.at, by: x.by, p };
+  return { at: x.at, by: x.by, first: x.first || x.at, p };
+}
+// Termín plánu lidí: pátek 12:00 před plánovaným týdnem. Rozhoduje první odevzdání (first), pozdější úpravy termín nemění.
+const SQ_PLAN_DL = { dayBefore: 3, hour: 12 };   // pondělí − 3 dny = pátek
+function sqDeadline(wk){ const d = addDays(weekDates(wk)[0], -SQ_PLAN_DL.dayBefore); const [y, m, dd] = d.split('-').map(Number); return new Date(y, m - 1, dd, SQ_PLAN_DL.hour, 0, 0); }
+function sqPlanStatus(wk){
+  const sp = sqPlanOf(wk), dl = sqDeadline(wk), dlTxt = `pá ${dl.getDate()}. ${dl.getMonth() + 1}. ${SQ_PLAN_DL.hour}:00`;
+  if (sp){ const f = new Date(sp.first || sp.at); return f <= dl ? { cls:'good', tag:'V TERMÍNU', txt:`Plán lidí ${cw(wk)} odevzdán v termínu` } : { cls:'warn', tag:'PO TERMÍNU', txt:`Plán lidí ${cw(wk)} odevzdán po termínu (${f.toLocaleString('cs-CZ', { day:'numeric', month:'numeric', hour:'2-digit', minute:'2-digit' })})` }; }
+  return new Date() > dl ? { cls:'crit', tag:'CHYBÍ – PO TERMÍNU', txt:`Chybí plán lidí ${cw(wk)} – po termínu (${dlTxt})` } : { cls:'warn', tag:'ČEKÁ', txt:`Plán lidí ${cw(wk)} – termín ${dlTxt}` };
 }
 const sqPlanHours = days => (days || []).reduce((s, v) => s + 12 * (v.d + v.n), 0);
 function sqPlanSet(wk, p, i, k, v){
   META.sqPlan = META.sqPlan || {}; const cur = sqPlanOf(wk) || { p:{} };
   const days = cur.p[p] || Array.from({ length:7 }, () => ({ d:0, n:0 })); days[i][k] = Math.max(0, v || 0); cur.p[p] = days;
-  META.sqPlan[wk] = { at: new Date().toISOString(), by: store.user ? store.user.email : '', p: Object.fromEntries(Object.entries(cur.p).map(([q, ds]) => [q, ds.map(x => `${x.d}:${x.n}`).join('|')])) };
+  META.sqPlan[wk] = { at: new Date().toISOString(), first: cur.first || new Date().toISOString(), by: store.user ? store.user.email : '', p: Object.fromEntries(Object.entries(cur.p).map(([q, ds]) => [q, ds.map(x => `${x.d}:${x.n}`).join('|')])) };
 }
 let sqSaveT;
 function sqPlanSave(){ clearTimeout(sqSaveT); sqSaveT = setTimeout(async () => { if (await safeSave(() => store.saveMeta())) toast('Plán Support Q uložen'); }, 600); }
@@ -2076,7 +2084,7 @@ function sqPlanCard(wk, F){
   const projs = [...new Set([...F.map(x => x.p), ...(sp ? Object.keys(sp.p) : [])])];
   const fb = Object.fromEntries(F.map(x => [x.p, x]));
   const head = `<div class="row" style="justify-content:space-between;align-items:center"><h2>Plán lidí od Support Q – ${cw(wk)}</h2>
-    <div class="row">${sp ? `<span class="tag good">ODEVZDÁNO</span><span class="small muted">${esc(sp.by || '')} · ${new Date(sp.at).toLocaleString('cs-CZ')}</span>` : `<span class="tag warn">ČEKÁ NA SUPPORT Q</span>`}
+    <div class="row">${(st => `<span class="tag ${st.cls}">${st.tag}</span>`)(sqPlanStatus(wk))}<span class="small muted">${sp ? `odevzdal ${esc(sp.by || '')} ${new Date(sp.first).toLocaleString('cs-CZ')}${sp.at !== sp.first ? ' · upraveno ' + new Date(sp.at).toLocaleString('cs-CZ') : ''}` : `termín ${(d => `pá ${d.getDate()}. ${d.getMonth() + 1}. ${SQ_PLAN_DL.hour}:00`)(sqDeadline(wk))}`}</span>
     ${canEdit ? `<button class="btn sm secondary" id="sqPrefill" data-wk="${wk}">${sp ? 'Přepsat návrhem dle plánu výroby' : 'Vyplnit návrhem dle plánu výroby'}</button>` : ''}</div></div>`;
   if (!sp && !canEdit) return `<div class="card">${head}<p class="small muted">Support Q vyplní, kolik lidí nasadí na který den a projekt. Tady se pak ukáže proti budgetu dle plánu výroby.</p></div>`;
   if (!sp) return `<div class="card">${head}<p class="small muted">Vyplňte, kolik lidí nasadíte na každý projekt a den – ve dne (6–18) a v noci (18–6). Nejrychleji tlačítkem „Vyplnit návrhem“ a pak upravte, co je jinak.</p></div>`;
@@ -2103,7 +2111,8 @@ document.addEventListener('click', async e => {
   const b = e.target.closest('#sqPrefill'); if (!b || !store.canWrite) return;
   const wk = b.dataset.wk, F = forwardData(wk, activeProjects(wk).filter(p => lineMapFor(p).length).map(p => projectWeek(p, wk)));
   META.sqPlan = META.sqPlan || {};
-  META.sqPlan[wk] = { at: new Date().toISOString(), by: store.user ? store.user.email : '', p: Object.fromEntries(F.map(x => [x.p, x.days.map(v => `${Math.ceil(v.d)}:${Math.ceil(v.n)}`).join('|')])) };
+  const prev = sqPlanOf(wk);
+  META.sqPlan[wk] = { at: new Date().toISOString(), first: prev ? prev.first : new Date().toISOString(), by: store.user ? store.user.email : '', p: Object.fromEntries(F.map(x => [x.p, x.days.map(v => `${Math.ceil(v.d)}:${Math.ceil(v.n)}`).join('|')])) };
   if (await safeSave(() => store.saveMeta())) toast('Návrh vyplněn – upravte, co je jinak');
   renderPlan();
 });
