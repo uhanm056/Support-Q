@@ -1873,7 +1873,7 @@ document.addEventListener('drop', e => { const q = e.target.closest && e.target.
 { let rz, lastW = window.innerWidth; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if (Math.abs(window.innerWidth - lastW) > 60){ lastW = window.innerWidth; const a = document.activeElement; if (!(a && /INPUT|TEXTAREA|SELECT/.test(a.tagName))) renderAll(); } }, 250); }); }
 
 /* ===================== 9b. Plán výroby a budget hodin (12h model) ===================== */
-// Plán výroby, přiřazení projekt → linky a cílová osádka jsou v /cfg – zapisuje jen správce (Support Q je nemůže měnit).
+// Plán výroby, přiřazení projekt → linky a cílový počet lidí jsou v /cfg – zapisuje jen správce (Support Q je nemůže měnit).
 const PLAN_CODES = { V:'výroba', '-':'bez výroby', '?':'TBA', S:'servis' };
 const DEFAULT_LINEMAP = {
   CZ19003:['ASSEMBLY G463','ASSEMBLY G463 (HB)'], CZ19020:['ASSEMBLY G463','ASSEMBLY G463 (HB)'],
@@ -2032,7 +2032,7 @@ function renderPlan(){
   const hpTag = hpp == null ? '' : `<span class="tag ${hpp > 60 ? 'crit' : hpp > 48 ? 'warn' : 'good'}">${hpp > 60 ? 'OVĚŘIT' : hpp > 48 ? 'PŘESČAS' : 'V MODELU'}</span>`;
   const editable = canCfg();
   const crewInp = (p, k, v, auto, a) => editable
-    ? `<input class="crew-inp" type="number" min="0" step="0.5" data-crew="${p}|${k}" value="${auto ? '' : v}" placeholder="${a}" title="${auto ? 'Automaticky podle nasazení Support Q (' + a + ' os.) – přepiš na cílovou osádku' : 'Cílová osádka (zadal správce) – smaž pro automatiku'}">`
+    ? `<input class="crew-inp" type="number" min="0" step="0.5" data-crew="${p}|${k}" value="${auto ? '' : v}" placeholder="${a}" title="${auto ? 'Automaticky podle nasazení Support Q (' + a + ' os.) – přepiš na cílový počet lidí' : 'Cílový počet lidí (zadal správce) – smaž pro automatiku'}">`
     : `${fmt(v, 1)}${auto ? '<span class="muted small"> auto</span>' : ''}`;
   const rowsL = L.map(x => {
     const d = x.act - x.budget, nm = pname(x.p), hcb = x.hc != null ? x.hc * HC_NORM : null, hp = x.hc ? x.act / x.hc : null;
@@ -2061,8 +2061,8 @@ function renderPlan(){
       ${tile('Režie bez vazby na linku', fmt(actO, 0), 'h', `${sum(O, 'hc')} lidí × ${HC_NORM} h = ${fmt(sum(O, 'hc') * HC_NORM, 0)} h`)}
     </div>
     <div class="card"><h2>Projekty na linkách – budget dle plánu výroby</h2>
-      <p class="small muted">Bloky = 12h bloky Support Q (den 6–18 / noc 18–6) ve dnech, kdy jede aspoň jedna linka projektu. Budget = 12 h × (denní bloky × osádka den + noční bloky × osádka noc). ${editable ? 'Osádku přepiš na cílový počet lidí – prázdné pole = automaticky podle skutečného nasazení Support Q.' : 'Osádku nastavuje správce.'}</p>
-      <div class="tbl-wrap"><table><thead><tr><th>Projekt</th><th>Popis / linky</th><th class="num">Bloky D/N</th><th class="num">Osádka den</th><th class="num">Osádka noc</th><th class="num">Budget h</th><th class="num">Skutečnost h</th><th class="num">Δ h</th><th class="num">Mimo plán h</th><th class="num">HC</th><th class="num">HC × ${HC_NORM}</th><th class="num">h / os.</th></tr></thead>
+      <p class="small muted">Bloky = 12h bloky Support Q (den 6–18 / noc 18–6) ve dnech, kdy jede aspoň jedna linka projektu. Budget = 12 h × (denní bloky × lidé ve dne + noční bloky × lidé v noci). ${editable ? 'Počet lidí přepiš na cílový stav – prázdné pole = automaticky podle skutečného nasazení Support Q.' : 'Počet lidí na směnu nastavuje správce.'}</p>
+      <div class="tbl-wrap"><table><thead><tr><th>Projekt</th><th>Popis / linky</th><th class="num">Bloky D/N</th><th class="num">Lidí na směnu den</th><th class="num">Lidí na směnu noc</th><th class="num">Budget h</th><th class="num">Skutečnost h</th><th class="num">Δ h</th><th class="num">Mimo plán h</th><th class="num">HC</th><th class="num">HC × ${HC_NORM}</th><th class="num">h / os.</th></tr></thead>
       <tbody>${rowsL}</tbody><tfoot><tr><td colspan="5"><b>Celkem linky</b></td><td class="num"><b>${fmt(bud, 0)}</b></td><td class="num"><b>${fmt(actL, 0)}</b></td><td class="num"><b>${actL - bud > 0 ? '+' : ''}${fmt(actL - bud, 0)}</b></td><td class="num">${fmt(off, 0)}</td><td class="num">${sum(L, 'hc')}</td><td class="num">${fmt(sum(L, 'hc') * HC_NORM, 0)}</td><td class="num">${sum(L, 'hc') ? fmt(actL / sum(L, 'hc'), 1) : '–'}</td></tr></tfoot></table></div></div>
     <div class="card"><h2>Režie a projekty bez vazby na linku – budget dle headcountu</h2>
       <div class="tbl-wrap"><table><thead><tr><th>Projekt</th><th>Popis</th><th class="num">Skutečnost h</th><th class="num">HC</th><th class="num">HC × ${HC_NORM}</th><th class="num">Δ h</th><th class="num">h / os.</th></tr></thead><tbody>${rowsO}</tbody>
@@ -2078,7 +2078,7 @@ function renderPlan(){
     <div class="card small muted"><b>Metodika:</b> Support Q pracuje ve 12h modelu – denní osoba 6–18 (8 h ranní + 4 h odpolední směny), noční 18–6 (4 h odpolední + 8 h noční). Počet lidí z docházky: noční = noční hodiny / 8, denní = (denní hodiny − 4 × noční) / 12.
       „Mimo plán“ = hodiny, kdy žádná z linek projektu nejela (nemusí být zbytečné – kontrola zásoby, rework; slouží jako podklad k otázkám). Budget dle headcountu = počet lidí na projektu, který zadal Support Q, × ${HC_NORM} h (průměr 12h modelu); nad 48 h na osobu = přesčas.</div>`;
 }
-// po úpravě osádky překreslit až po opuštění polí, ať kurzor neskáče při přechodu tabulátorem
+// po úpravě počtu lidí překreslit až po opuštění polí, ať kurzor neskáče při přechodu tabulátorem
 function planRenderSoon(){ setTimeout(() => { const a = document.activeElement; if (a && a.dataset && a.dataset.crew) return; renderPlan(); }, 150); }
 document.addEventListener('focusout', e => { if (e.target.dataset && e.target.dataset.crew) planRenderSoon(); });
 document.addEventListener('click', e => { const c = e.target.closest('[data-planwk]'); if (c){ UI.planWk = c.dataset.planwk; renderPlan(); } });
