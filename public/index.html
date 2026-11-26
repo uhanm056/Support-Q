@@ -1046,7 +1046,7 @@ function nowStatus(){
 }
 function renderNow(){
   const n = nowStatus(), el = $('nowBox'); if (!el) return;
-  el.innerHTML = `<div class="nowbox"><div class="nb-cw">${cw(n.curWk)}</div><div class="nb-t"><b>Dnes ${n.dayName} ${fmtDY(n.today)}</b><span class="nb-st nb-${n.st.cls}">● ${n.st.txt}</span>${(() => { const nw = isoWeek(addDays(n.today, 7)); if (typeof planWeeks !== 'function' || !planWeeks().includes(nw)) return ''; const st = sqPlanStatus(nw); return `<span class="nb-st nb-${st.cls}">● ${st.txt}</span>`; })()}</div></div>`;
+  el.innerHTML = `<div class="nowbox"><div class="nb-cw">${cw(n.curWk)}</div><div class="nb-t"><b>Dnes ${n.dayName} ${fmtDY(n.today)}</b><span class="nb-st nb-${n.st.cls}">● ${n.st.txt}</span>${(() => { const nw = isoWeek(addDays(n.today, 7)); if (typeof planWeeks !== 'function') return ''; if (!weekDates(nw).some(d => CFG.plan[d])) return `<span class="nb-st nb-warn">● Plán výroby ${cw(nw)} zatím nenahrán</span>`; const st = sqPlanStatus(nw); return `<span class="nb-st nb-${st.cls}">● ${st.txt}</span>`; })()}</div></div>`;
 }
 
 /* ---------- Přehled týdne: metriky, porovnání, sparkline ---------- */
@@ -2142,17 +2142,31 @@ document.addEventListener('click', async e => {
   const t = planCopyText(b.dataset.wk);
   try { await navigator.clipboard.writeText(t); toast('Plán zkopírován – vlož do e-mailu nebo Excelu'); } catch(err){ toast('Kopírování se nepovedlo: ' + err.message); }
 });
+// Připravený příští týden, pro který ještě není plán výroby
+function planWaiting(wk){
+  const ds = weekDates(wk), dl = sqDeadline(wk), dlTxt = `pá ${dl.getDate()}. ${dl.getMonth() + 1}. ${SQ_PLAN_DL.hour}:00`;
+  const lw = lastFullWeekBefore(wk), act = activeProjects(wk);
+  const steps = `<ol class="small" style="margin:.4rem 0 0 1.1rem;line-height:1.7">
+      <li><b>Yanfeng</b> nahraje plán výroby (production overview .xls), který obsahuje ${cw(wk)} – stačí i soubor, kde je ${cw(wk)} jako výhled druhého týdne.</li>
+      <li>Aplikace spočítá směny, budget hodin a návrh nasazení lidí po dnech.</li>
+      <li><b>Support Q</b> vyplní plán lidí do <b>${dlTxt}</b>.</li>
+      <li>Po nahrání docházky za ${cw(wk)} se tu ukáže budget × plán Support Q × skutečnost.</li></ol>`;
+  return `<div class="card"><div class="row" style="justify-content:space-between;align-items:center"><h2>${cw(wk)} · ${fmtDY(ds[0])} – ${fmtDY(ds[6])}</h2><span class="tag warn">ČEKÁ NA PLÁN VÝROBY</span></div>
+      ${canCfg() ? `<div class="drop quick" style="margin-top:.75rem"><div class="big" style="font-size:2.2rem">🏭</div>
+        <b>Přetáhni sem plán výroby pro ${cw(wk)}</b> (.xls)<br><label>nebo vyber soubor<input type="file" class="quickFile" accept=".xls,.xlsx" hidden></label></div>`
+      : `<div class="warnbox" style="margin-top:.75rem">Plán výroby pro ${cw(wk)} zatím Yanfeng nenahrál. Jakmile ho nahraje, objeví se tu návrh nasazení a formulář pro plán lidí.</div>`}
+      ${steps}
+      ${lw ? `<p class="small muted" style="margin-top:.6rem">Pro plánování se použijí projekty aktivní v ${cw(lw)} (${act.length}).</p>` : ''}</div>`;
+}
 function renderPlan(){
   const el = $('planBody'); if (!el) return;
-  const wks = planWeeks();
-  if (!wks.length){
-    $('planChips').innerHTML = '';
-    el.innerHTML = `<div class="card empty"><div class="big">🏭</div>Zatím není nahraný žádný plán výroby.<br>Nahraj týdenní „production overview“ (.xls) – tlačítkem nahoře nebo přetažením v sekci Import.</div>`;
-    return;
-  }
-  if (!UI.planWk || !wks.includes(UI.planWk)) UI.planWk = wks.filter(w => weekCovered(w) === 7).at(-1) || wks.at(-1);
-  const wk = UI.planWk, pi = wks.indexOf(wk), pw = pi > 0 ? wks[pi - 1] : null;
-  $('planChips').innerHTML = wks.map(w => `<button class="chip ${w === wk ? 'active' : ''}" data-planwk="${w}">${cw(w)}<span class="d">${fmtD(weekDates(w)[0])}${weekCovered(w) === 0 ? (planIsPreview(w) ? ' · VÝHLED' : ' · PLÁN') : weekCovered(w) < 7 ? ' · hodiny ' + weekCovered(w) + '/7' : ''}</span></button>`).join('');
+  const nextWk = isoWeek(addDays(todayISO(), 7));
+  const wks = [...new Set([...planWeeks(), nextWk])].sort();     // příští týden je připravený vždy – i bez nahraného plánu
+  const hasPlan = w => weekDates(w).some(d => CFG.plan[d]);
+  if (!UI.planWk || !wks.includes(UI.planWk)) UI.planWk = hasPlan(nextWk) ? nextWk : (wks.filter(w => hasPlan(w) && weekCovered(w) === 7).at(-1) || nextWk);
+  const wk = UI.planWk, pi = wks.indexOf(wk), pw = pi > 0 && hasPlan(wks[pi - 1]) ? wks[pi - 1] : null;
+  $('planChips').innerHTML = wks.map(w => `<button class="chip ${w === wk ? 'active' : ''}" data-planwk="${w}">${cw(w)}<span class="d">${fmtD(weekDates(w)[0])}${!hasPlan(w) ? ' · ČEKÁ NA PLÁN' : weekCovered(w) === 0 ? (planIsPreview(w) ? ' · VÝHLED' : ' · PLÁN') : weekCovered(w) < 7 ? ' · hodiny ' + weekCovered(w) + '/7' : ''}</span></button>`).join('');
+  if (!hasPlan(wk)){ el.innerHTML = planWaiting(wk); return; }
   const ds = weekDates(wk), dset = new Set(ds);
   const hoursP = new Set(Object.keys(ROWS).filter(k => dset.has(k.slice(0, 10))).map(k => k.slice(11)));
   const hcp = (META.hcp || {})[wk] || {};
