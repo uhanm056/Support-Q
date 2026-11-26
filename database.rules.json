@@ -31,6 +31,10 @@
         ".read": "auth != null && auth.token.email != null && auth.token.email.toLowerCase().replace('.', ',') === $key",
         ".validate": "newData.val() === 'editor' || newData.val() === 'viewer'"
       }
+    },
+    "cfg": {
+      ".read": "auth != null && root.child('roles').child(auth.uid).exists()",
+      ".write": "auth != null && root.child('roles').child(auth.uid).val() === 'admin'"
     }
   }
 }
