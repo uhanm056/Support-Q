@@ -123,6 +123,9 @@ table.ptab tr.grp td{background:var(--navy-soft);font-weight:700;font-size:.86re
 details.sect>summary{font-size:1rem;padding:.2rem 0}details.sect[open]>summary{margin-bottom:.6rem}
 @media (max-width:900px){.stepper{grid-template-columns:repeat(2,minmax(0,1fr))}.hero{grid-template-columns:minmax(0,1fr)}}
 .cost-s{font-size:.74rem;color:var(--navy);font-weight:600}
+.avg-col{background:color-mix(in srgb,var(--navy) 4%,transparent)}
+.avg-note{font-weight:400;text-transform:none;color:var(--warn);font-size:.68rem}
+table.avg-tab td:first-child{font-weight:600}table.avg-tab td .tag{margin-top:.15rem}
 .cost-m{font-family:var(--f-mono);font-weight:700;color:var(--navy)}
 [data-theme="dark"] .cost-m{color:#8DB8F0}
 [data-theme="dark"] .cost-s{color:#8DB8F0}
@@ -1150,6 +1153,26 @@ function comboChart(wks){
 }
 
 const trendWeeks = () => { const w = weeksList(); while (w.length > 1 && weekCovered(w[0]) < 4) w.shift(); return w; };
+// Průměr za posledních N úplných týdnů (končí vybraným týdnem); když je týdnů méně, průměruje dostupné
+const AVG_N = [4, 8, 12];
+function lastFullWeeks(wk, n){ return [...new Set(META.cov.map(isoWeek))].filter(w => w <= wk && weekCovered(w) === 7).sort().slice(-n); }
+function avgOver(ws, f){ if (!ws.length) return null; const v = ws.map(f).filter(x => x != null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; }
+function avgCard(wk){
+  const rows = allRows(), C = weekMetrics(wk);
+  const cols = AVG_N.map(n => { const ws = lastFullWeeks(wk, n); const M = ws.map(weekMetrics);
+    return { n, k: ws.length, ws, e: avgOver(M, m => m.e), t: avgOver(M, m => m.t), hc: avgOver(M, m => m.hc), hpw: avgOver(M, m => m.hpw) }; });
+  const dd = (cur, avg, unit, d) => cur == null || avg == null || !avg ? '' : (() => { const r = (cur - avg) / avg; return `<span class="tag ${r > .05 ? 'crit' : r < -.05 ? 'good' : 'neutral'}">${r > 0 ? '+' : ''}${fmt(r * 100, 0)} %</span>`; })();
+  const line = (lbl, cur, k, f, unit) => `<tr><td>${lbl}</td><td class="num"><b>${cur == null ? '–' : f(cur)}</b></td>${cols.map(c => `<td class="num">${c[k] == null ? '–' : f(c[k])}<div>${dd(cur, c[k])}</div></td>`).join('')}</tr>`;
+  return `<div class="card" style="margin-top:1rem"><h2>Průměr na týden – posledních 4 / 8 / 12 týdnů</h2>
+    <p class="small muted" style="margin:-.2rem 0 .6rem">Jen úplné týdny (7 dní v datech) do ${cw(wk)} včetně. Štítek = ${cw(wk)} proti průměru (červeně dráž / víc).</p>
+    <div class="tbl-wrap"><table class="avg-tab"><thead><tr><th></th><th class="num">${cw(wk)}</th>${cols.map(c => `<th class="num">Ø ${c.n} týdnů${c.k < c.n ? `<div class="avg-note">jen ${c.k} t. v datech</div>` : ''}</th>`).join('')}</tr></thead>
+    <tbody>
+      ${line('💶 Náklady', C.e, 'e', v => fmtKc(v))}
+      ${line('⏱️ Hodiny', C.t, 't', v => fmt(v, 0) + ' h')}
+      ${line('👥 Headcount', C.hc, 'hc', v => fmt(v, 1))}
+      ${line('Hodin na osobu', C.hpw, 'hpw', v => fmt(v, 1) + ' h')}
+    </tbody></table></div></div>`;
+}
 function renderTrend(){
   const el = $('trendBody');
   const wksAll = trendWeeks();
@@ -1209,13 +1232,14 @@ function renderTrend(){
   const tprojs = [...new Set(rows.filter(r => wks.some(w => weekDates(w).includes(r.d))).map(r => r.p))];
   const lines = tprojs.map(p => {
     const pr = rows.filter(r => r.p === p), v = wks.map(w => weekSum(pr, w).t), n = wks.map(w => hcpOf(w, p)), ev = wks.map(w => weekCost(pr, w));
+    const av = AVG_N.map(k => { const ws = lastFullWeeks(wk, k); return { e: avgOver(ws, w => weekCost(pr, w)), t: avgOver(ws, w => weekSum(pr, w).t) }; });
     const hNow = weekSum(pr, wk).t, nNow = hcpOf(wk, p), hpp = nNow ? hNow * 7 / (C.cov || 7) / nNow : null;
     const c1 = hNow, c0 = pw ? weekSum(pr, pw).t : null;
-    return { p, v, ev, n, nNow, hpp, hr: nNow ? hcRag(hpp) : (hNow > 0 ? { cls:'warn', label:'DOPLNIT' } : { cls:'neutral', label:'–' }),
+    return { p, v, ev, av, n, nNow, hpp, hr: nNow ? hcRag(hpp) : (hNow > 0 ? { cls:'warn', label:'DOPLNIT' } : { cls:'neutral', label:'–' }),
              d: comp ? c1 - c0 : null, rg: comp ? rag(c1, c0) : rag(0, null), c1 };
   }).sort((a, b) => b.c1 - a.c1);
   const hcFilled = C.hc != null;
-  const hcRow = (label, f) => `<tr><td colspan="5">${label}</td>${wks.map(w => { const v = f(hcGet(w), w); return `<td class="num">${v == null ? '<span class="muted">–</span>' : fmt(v, 1)}</td>`; }).join('')}<td colspan="2"></td></tr>`;
+  const hcRow = (label, f) => `<tr><td colspan="5">${label}</td>${wks.map(w => { const v = f(hcGet(w), w); return `<td class="num">${v == null ? '<span class="muted">–</span>' : fmt(v, 1)}</td>`; }).join('')}<td colspan="${2 + AVG_N.length}"></td></tr>`;
 
   const demo = META.demo;
   el.innerHTML = `
@@ -1243,18 +1267,20 @@ function renderTrend(){
     <div class="legend"><span><i style="background:var(--navy)"></i>denní hodiny</span><span><i style="background:var(--night)"></i>noční hodiny</span><span><i style="background:var(--warn);border-radius:50%"></i>headcount</span><span>světlejší sloupec = neúplný týden</span></div>
     <div style="overflow-x:auto">${comboChart(wks)}</div></div>
 
+  ${avgCard(wk)}
   <h2 style="margin-top:1.25rem">Projekty – hodiny, náklady a lidé po týdnech</h2>
   <div class="tbl-wrap" style="max-height:none"><table class="multi-foot">
-    <thead><tr><th>Projekt</th><th>Popis</th><th class="num">Lidí ${cw(wk)}</th><th class="num">h/os</th><th>Vytížení</th>${wks.map(w => `<th class="num">${cw(w)}${weekCovered(w) < 7 ? '*' : ''}<div style="font-weight:400;text-transform:none">€ · h · lidí</div></th>`).join('')}<th class="num">Δ h</th><th>Trend</th></tr></thead>
+    <thead><tr><th>Projekt</th><th>Popis</th><th class="num">Lidí ${cw(wk)}</th><th class="num">h/os</th><th>Vytížení</th>${wks.map(w => `<th class="num">${cw(w)}${weekCovered(w) < 7 ? '*' : ''}<div style="font-weight:400;text-transform:none">€ · h · lidí</div></th>`).join('')}<th class="num">Δ h</th><th>Trend</th>${AVG_N.map(k => `<th class="num avg-col">Ø ${k} t.<div style="font-weight:400;text-transform:none">€ · h</div></th>`).join('')}</tr></thead>
     <tbody>${lines.map(l => `<tr><td class="mono">${esc(l.p)}</td><td class="desc">${esc(pname(l.p))}</td>
       <td class="num">${store.canWrite ? `<input class="hcin" type="number" min="0" step="0.5" inputmode="decimal" data-hcp="${esc(l.p)}" data-wk="${wk}" data-h="${l.c1 * 7 / (C.cov || 7)}" value="${l.nNow ?? ''}" aria-label="Počet lidí ${esc(l.p)}">` : fmt(l.nNow, 1)}</td>
       <td class="num">${fmt(l.hpp, 1)}</td><td><span class="tag ${l.hr.cls}">${l.hr.label}</span></td>
       ${l.v.map((v, j) => `<td class="num ${v ? '' : 'zero'}">${v ? `<div class="cost-m">${fmtKc(l.ev[j])}</div><div class="small">${fmt(v)} h</div>` : fmt(v)}${l.n[j] != null ? `<div class="small muted">${fmt(l.n[j], 1)} lidí</div>` : ''}</td>`).join('')}
       <td class="num">${l.d != null ? (l.d > 0 ? '+' : '') + fmt(l.d) : '–'}</td>
-      <td><span class="tag ${l.rg.cls}">${l.rg.label}</span> <span class="mono small">${l.rg.pct != null ? pct(l.rg.pct) : ''}</span></td></tr>`).join('')}</tbody>
+      <td><span class="tag ${l.rg.cls}">${l.rg.label}</span> <span class="mono small">${l.rg.pct != null ? pct(l.rg.pct) : ''}</span></td>
+      ${l.av.map(a => `<td class="num avg-col">${a.e ? `<div class="cost-m">${fmtKc(a.e)}</div><div class="small">${fmt(a.t, 0)} h</div>` : '<span class="muted">–</span>'}</td>`).join('')}</tr>`).join('')}</tbody>
     <tfoot>
-      <tr class="cost-row"><td colspan="5"><b>Náklady celkem</b></td>${wks.map(w => `<td class="num"><b>${fmtKc(weekCost(rows, w))}</b></td>`).join('')}<td colspan="2"></td></tr>
-      <tr><td colspan="2">Hodiny celkem</td><td class="num">${fmt(hcpSum(wk), 1)}</td><td colspan="2" class="small muted">součet lidí na projektech</td>${wks.map(w => `<td class="num">${fmt(weekSum(rows, w).t)}${hcpSum(w) != null ? `<div class="small muted">${fmt(hcpSum(w), 1)} lidí</div>` : ''}</td>`).join('')}<td class="num">${comp ? (C.t - P.t > 0 ? '+' : '') + fmt(C.t - P.t) : '–'}</td><td><span class="tag ${comp ? rag(C.t, P.t).cls : 'neutral'}">${comp ? rag(C.t, P.t).label : '–'}</span></td></tr>
+      <tr class="cost-row"><td colspan="5"><b>Náklady celkem</b></td>${wks.map(w => `<td class="num"><b>${fmtKc(weekCost(rows, w))}</b></td>`).join('')}<td colspan="2"></td>${AVG_N.map(k => { const v = avgOver(lastFullWeeks(wk, k), w => weekCost(rows, w)); return `<td class="num avg-col"><b>${v == null ? '–' : fmtKc(v)}</b></td>`; }).join('')}</tr>
+      <tr><td colspan="2">Hodiny celkem</td><td class="num">${fmt(hcpSum(wk), 1)}</td><td colspan="2" class="small muted">součet lidí na projektech</td>${wks.map(w => `<td class="num">${fmt(weekSum(rows, w).t)}${hcpSum(w) != null ? `<div class="small muted">${fmt(hcpSum(w), 1)} lidí</div>` : ''}</td>`).join('')}<td class="num">${comp ? (C.t - P.t > 0 ? '+' : '') + fmt(C.t - P.t) : '–'}</td><td><span class="tag ${comp ? rag(C.t, P.t).cls : 'neutral'}">${comp ? rag(C.t, P.t).label : '–'}</span></td>${AVG_N.map(k => { const v = avgOver(lastFullWeeks(wk, k), w => weekSum(rows, w).t); return `<td class="num avg-col">${v == null ? '–' : fmt(v, 0) + ' h'}</td>`; }).join('')}</tr>
       ${HC_FIELDS.map(([k, l]) => hcRow(l, h => h[k])).join('')}
       ${hcRow('Headcount celkem', h => h.t)}
       ${hcRow('Hodin na osobu', (h, w) => h.t ? weekSum(rows, w).t * 7 / (weekCovered(w) || 7) / h.t : null)}
