@@ -99,6 +99,29 @@ td.zero{color:var(--muted);opacity:.5}
 td.sq-off{background:color-mix(in srgb,var(--crit) 14%,transparent)}
 .crit-t{color:var(--crit);font-weight:600}
 details.card>summary{cursor:pointer}
+.stepper{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.6rem;margin:.2rem 0 .9rem}
+.step{display:flex;gap:.6rem;align-items:flex-start;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:.7rem .8rem;border-top:4px solid var(--muted)}
+.step.st-good{border-top-color:var(--good)}.step.st-warn{border-top-color:var(--warn)}.step.st-crit{border-top-color:var(--crit)}
+.st-n{flex:0 0 26px;height:26px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:.8rem;background:var(--line);color:var(--text)}
+.st-good .st-n{background:var(--good);color:#fff}.st-warn .st-n{background:var(--warn);color:#fff}.st-crit .st-n{background:var(--crit);color:#fff}
+.st-t{font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}.st-v{font-weight:700;margin:.05rem 0}.st-s{font-size:.78rem;color:var(--muted)}
+.hero{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.8rem;margin-bottom:.8rem}
+.hc{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:1rem 1.1rem;border-top:6px solid var(--navy)}
+.hc-sq{border-top-color:var(--info)}.hc-act{border-top-color:var(--good)}.hc-bad{border-top-color:var(--crit)}
+.hc-l{font-weight:700;font-size:.95rem}.hc-l span{font-weight:400;color:var(--muted);font-size:.78rem;margin-left:.3rem}
+.hc-big{font-family:var(--f-mono);font-size:2.1rem;font-weight:600;margin:.3rem 0 0;line-height:1.1}.hc-h{color:var(--muted);font-size:.85rem}
+.hc-bar{height:8px;background:var(--line);border-radius:4px;margin:.6rem 0 .5rem;overflow:hidden}.hc-bar i{display:block;height:100%;background:var(--navy);border-radius:4px}
+.hc-sq .hc-bar i{background:var(--info)}.hc-act .hc-bar i{background:var(--good)}.hc-bad .hc-bar i{background:var(--crit)}
+.hc-s{font-size:.82rem;color:var(--muted)}
+.pverdict{display:block;border-radius:12px;padding:.85rem 1.1rem;margin-bottom:.9rem;font-size:1.02rem;color:var(--text);border-left:5px solid var(--info);background:color-mix(in srgb,var(--info) 9%,var(--surface))}
+.pverdict.v-bad{border-left-color:var(--crit);background:color-mix(in srgb,var(--crit) 9%,var(--surface))}.pverdict.v-good{border-left-color:var(--good);background:color-mix(in srgb,var(--good) 9%,var(--surface))}
+.vd-top{font-size:.86rem;margin-top:.35rem;color:var(--muted)}
+table.ptab td{vertical-align:middle}table.ptab .e{font-family:var(--f-mono);font-weight:600}table.ptab .h{font-size:.74rem;color:var(--muted)}
+table.ptab tr.grp td{background:var(--navy-soft);font-weight:700;font-size:.86rem}
+.dbar{display:inline-block;position:relative;width:70px;height:8px;margin-left:.5rem;vertical-align:middle;background:linear-gradient(90deg,transparent 49.5%,var(--line) 49.5%,var(--line) 50.5%,transparent 50.5%)}
+.dbar i{position:absolute;top:0;height:100%;border-radius:3px}.dbar i.up{background:var(--crit)}.dbar i.dn{background:var(--good)}
+details.sect>summary{font-size:1rem;padding:.2rem 0}details.sect[open]>summary{margin-bottom:.6rem}
+@media (max-width:900px){.stepper{grid-template-columns:repeat(2,minmax(0,1fr))}.hero{grid-template-columns:minmax(0,1fr)}}
 .okbox{border-left:4px solid var(--good);background:color-mix(in srgb,var(--good) 10%,var(--surface));padding:.6rem .8rem;border-radius:8px;margin:.5rem 0;font-size:.9rem}
 .chart svg{width:100%;height:auto;display:block}
 .chart text{font-family:var(--f-text);fill:var(--muted);font-size:11px}
@@ -114,7 +137,7 @@ details summary{cursor:pointer;font-weight:600;margin:.25rem 0}
 /* --- moderní přehled týdne --- */
 .card{box-shadow:0 1px 2px rgba(15,35,64,.04),0 4px 14px rgba(15,35,64,.05);border-radius:14px}
 .verdict{display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;padding:1rem 1.25rem;border-radius:14px;margin-bottom:1rem;color:#fff;background:var(--muted)}
-.verdict.v-good{background:linear-gradient(120deg,#13784D,#1A9963)} .verdict.v-crit{background:linear-gradient(120deg,#A9332E,#D24842)}
+.pverdict.v-good{background:linear-gradient(120deg,#13784D,#1A9963)} .verdict.v-crit{background:linear-gradient(120deg,#A9332E,#D24842)}
 .verdict.v-warn{background:linear-gradient(120deg,#9A6600,#C07F00)} .verdict.v-neutral{background:linear-gradient(120deg,#0F2340,#003B7A)}
 .v-wk{font-size:.8rem;opacity:.85;letter-spacing:.03em} .v-t{font-family:var(--f-head);font-size:1.45rem;font-weight:700} .v-s{font-size:.95rem;opacity:.95}
 .kt-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.85rem;margin-bottom:.75rem}
@@ -217,7 +240,7 @@ details summary{cursor:pointer;font-weight:600;margin:.25rem 0}
   <!-- IMPORT -->
   <!-- PLÁN VÝROBY -->
   <section data-view="plan">
-    <div class="head"><h1>Budget hodin dle plánu výroby</h1><div class="row"><label class="btn sm" id="planUpload">⬆️ Nahrát plán výroby (.xls)<input type="file" id="planInput" accept=".xls,.xlsx" multiple hidden></label></div></div>
+    <div class="head"><h1>Plán výroby a náklady Support Q</h1><div class="row"><label class="btn sm" id="planUpload">⬆️ Nahrát plán výroby (.xls)<input type="file" id="planInput" accept=".xls,.xlsx" multiple hidden></label></div></div>
     <div class="chips" id="planChips"></div>
     <div id="planBody"></div>
   </section>
@@ -2047,27 +2070,15 @@ function planForward(wk, pw, L, O, ls, lsp, shT, shP, allP, lineNames){
     return `<tr><td>${esc(n)}${used ? ' <span class="tag info">SQ</span>' : ''}</td><td>${cells}</td><td class="num">${b ?? '–'}</td><td class="num"><b>${a}</b></td><td class="num">${b != null && a !== b ? `<span class="tag ${a > b ? 'good' : 'crit'}">${a > b ? '+' : ''}${a - b}</span>` : ''}</td></tr>`;
   }).join('');
   const prevNote = planIsPreview(wk) ? `<div class="warnbox">Plán ${cw(wk)} je zatím <b>výhled</b> ze souboru ${esc((CFG.plan[ds.find(d => CFG.plan[d])] || {}).src || '')} (${planDaysOf(wk)}/7 dní${planDaysOf(wk) < 7 ? ', chybějící dny = bez výroby' : ''}). Po nahrání souboru, kde je ${cw(wk)} prvním týdnem, se přepíše.</div>` : '';
-  return `<div class="okbox"><b>Plán na ${cw(wk)}</b> (${fmtDY(ds[0])} – ${fmtDY(ds[6])}) – docházka za tento týden ještě není. Níže je, kolik lidí má Support Q nasadit podle plánu výroby. Po nahrání docházky se tu objeví porovnání se skutečností.</div>${prevNote}
-    <div class="grid-kpi">
-      <div class="kpi"><div class="lbl">Směny s výrobou</div><div class="val">${shT}</div><div class="sub">${shP != null ? `${cw(pw)}: ${shP} · <b>${fp(shT, shP)}</b>` : ''}</div></div>
-      <div class="kpi"><div class="lbl">Predikce – linky</div><div class="val">${fmt(bud, 0)}<span class="small muted"> h</span></div><div class="sub"><b>${eur(predE)}</b>${lastAct != null ? ` · ${cw(lastW)} skutečnost ${fmt(lastAct, 0)} h (${fp(bud, lastAct)})` : ''}</div></div>
-      <div class="kpi"><div class="lbl">Plán Support Q ${(st => `<span class="tag ${st.cls}">${st.tag}</span>`)(sqPlanStatus(wk))}</div><div class="val">${spF ? fmt(sqH, 0) : '–'}<span class="small muted"> h</span></div><div class="sub">${spF ? `<b>${eur(sqE)}</b> · změna nákladu <b class="${sqE - totE > 1 ? 'crit-t' : ''}">${Math.abs(sqE - totE) < 1 ? 'žádná' : sgn(sqE - totE)}</b>` : 'termín ' + (d => `pá ${d.getDate()}. ${d.getMonth() + 1}. ${SQ_PLAN_DL.hour}:00`)(sqDeadline(wk))}</div></div>
-      <div class="kpi"><div class="lbl">Potřeba lidí – linky</div><div class="val">${fmt(heads, 1)}</div><div class="sub">budget / ${HC_NORM} h (12h model)</div></div>
-      <div class="kpi"><div class="lbl">Predikce – režie</div><div class="val">${fmt(ohH, 0)}<span class="small muted"> h</span></div><div class="sub"><b>${eur(ohE)}</b>${ohLast != null ? ` · ${cw(lastW)} skutečnost ${fmt(ohLast, 0)} h` : ''}</div></div>
-      <div class="kpi"><div class="lbl">Predikce celkem</div><div class="val">${fmt(totH, 0)}<span class="small muted"> h</span></div><div class="sub"><b>${eur(totE)}</b> · linky + režie</div></div>
-    </div>
-    <div class="card"><div class="row" style="justify-content:space-between"><h2>Plán nasazení Support Q – ${cw(wk)}</h2><button class="btn sm" id="planCopy" data-wk="${wk}">📋 Kopírovat pro Support Q</button></div>
+  return { note: prevNote, yf: `    <div class="card"><div class="row" style="justify-content:space-between"><h2>Predikce nasazení po dnech – ${cw(wk)}</h2></div>
       <p class="small muted">V buňkách je počet lidí ve dne (6–18) / v noci (18–6) pro každý den, kdy jede aspoň jedna linka projektu. ${editable ? 'Počet lidí na směnu můžeš upravit vpravo – prázdné pole = podle dosavadního nasazení Support Q.' : ''}</p>
       <div class="tbl-wrap"><table><thead><tr><th>Projekt</th><th>Popis / linky</th>${ds.map((d, i) => `<th class="num">${DN[i]} ${fmtD(d)}<br><span class="muted small">den / noc</span></th>`).join('')}<th class="num">Lidí na směnu den</th><th class="num">Lidí na směnu noc</th><th class="num">Predikce h</th><th class="num">Predikce €</th><th class="num">Lidí (÷${HC_NORM})</th></tr></thead>
       <tbody>${rows}</tbody><tfoot><tr><td colspan="2"><b>Lidí za den celkem</b></td>${perDay.map(v => `<td class="num"><b>${fmt(v, 1)}</b></td>`).join('')}<td></td><td></td><td class="num"><b>${fmt(bud, 0)}</b></td><td class="num"><b>${eur(predE)}</b></td><td class="num"><b>${fmt(heads, 1)}</b></td></tr></tfoot></table></div>
       ${noPlan.length ? `<div class="warnbox">Bez výroby celý týden (budget 0 h): ${noPlan.map(x => `<span class="mono">${esc(x.p)}</span> ${esc(pname(x.p))}`).join(' · ')}</div>` : ''}</div>
-    ${sqPlanCard(wk, F)}
-    ${ohCardForward(wk, bud, F)}
-    ${ratesCard()}
-    <details class="card" open><summary><b>Plán výroby ${cw(wk)} po linkách</b> <span class="muted small">– směny ${pw ? cw(pw) + ' → ' : ''}${cw(wk)}</span></summary>
+`, sq: sqPlanCard(wk, F), ohSq: ohCardForward(wk, bud, F, 'sq'), ohCfg: ohCardForward(wk, bud, F, 'cfg'), grid: `    <details class="card"><summary><b>Plán výroby ${cw(wk)} po linkách</b> <span class="muted small">– směny ${pw ? cw(pw) + ' → ' : ''}${cw(wk)}</span></summary>
       <div class="small muted" style="margin:.5rem 0"><i class="pg-v lg"></i> výroba <i class="pg-x lg"></i> bez výroby <i class="pg-t lg"></i> TBA <i class="pg-s lg"></i> servis · každý den 3 směny: ranní 6–14, odpolední 14–22, noční 22–6</div>
       <div class="tbl-wrap"><table><thead><tr><th>Linka</th><th>${ds.map(d => `<span class="pg-h">${DN[dow(d)]} ${dObj(d).getUTCDate()}.</span>`).join('')}</th><th class="num">${pw ? cw(pw) : ''}</th><th class="num">${cw(wk)}</th><th class="num">Δ</th></tr></thead><tbody>${grid}</tbody>
-      <tfoot><tr><td><b>Celkem</b></td><td></td><td class="num">${shP ?? '–'}</td><td class="num"><b>${shT}</b></td><td class="num">${shP != null ? (shT - shP > 0 ? '+' : '') + (shT - shP) : ''}</td></tr></tfoot></table></div></details>`;
+      <tfoot><tr><td><b>Celkem</b></td><td></td><td class="num">${shP ?? '–'}</td><td class="num"><b>${shT}</b></td><td class="num">${shP != null ? (shT - shP > 0 ? '+' : '') + (shT - shP) : ''}</td></tr></tfoot></table></div></details>` };
 }
 // ---- Plán lidí od Support Q (zapisuje editor = Support Q; uloženo v META.sqPlan[týden].p[projekt] = "d:n|d:n|…" po dnech) ----
 function sqPlanOf(wk){
@@ -2135,19 +2146,25 @@ function ohModeCell(x, wk){
   return `<select data-ohm="${x.p}">${Object.entries(OH_MODE).map(([k, l]) => `<option value="${k}" ${k === x.c.mode ? 'selected' : ''}>${l}</option>`).join('')}</select>
     ${x.c.mode !== 'none' ? `<input class="crew-inp" type="text" inputmode="decimal" autocomplete="off" data-ohv="${x.p}" value="${x.c.auto ? '' : String(x.c.v).replace('.', ',')}" placeholder="${String(x.c.v).replace('.', ',')}" title="${x.c.auto ? 'Předvyplněno – přepiš na cílovou hodnotu' : 'Nastavil správce – smaž pro výchozí'}">${x.c.mode === 'pct' ? ' %' : x.c.mode === 'hod' ? ' h' : ''}` : ''}`;
 }
-function ohCardForward(wk, lineBud, F){
+function ohCardForward(wk, lineBud, F, view){
+  view = view || 'sq';
   const R = ohRows(wk, lineBud, ohProjects(wk)), sp = sqPlanOf(wk), canEdit = store.canWrite && !!sp;
   const tP = R.reduce((s, x) => s + x.predH, 0), tPE = R.reduce((s, x) => s + x.predE, 0);
   const hasSq = sp && sp.oh, tS = R.reduce((s, x) => s + (x.sqH ?? x.predH), 0), tSE = R.reduce((s, x) => s + (x.sqE ?? x.predE), 0);
   const rows = R.map(x => {
     const sqCell = canEdit ? `<input class="sq-inp" type="text" inputmode="decimal" autocomplete="off" data-sqoh="${wk}|${x.p}" value="${x.sqN != null ? fmt(x.sqN, 1) : ''}" placeholder="${String(Math.round(x.predH / HC_NORM * 2) / 2).replace('.', ',')}">` : (x.sqN != null ? fmt(x.sqN, 1) : '<span class="muted">–</span>');
     const de = x.sqE != null ? x.sqE - x.predE : null;
-    return `<tr><td class="mono">${esc(x.p)}</td><td class="desc">${esc(pname(x.p))}</td><td>${ohModeCell(x, wk)}</td><td class="num"><b>${fmt(x.predH, 0)}</b></td><td class="num">${eur(x.predE)}</td><td class="num">${sqCell}</td><td class="num">${x.sqH != null ? fmt(x.sqH, 0) : '–'}</td><td class="num">${de == null ? '–' : `<span class="tag ${Math.abs(de) < 1 ? 'neutral' : de > 0 ? 'crit' : 'good'}">${Math.abs(de) < 1 ? 'beze změny' : sgn(de)}</span>`}</td></tr>`;
+    if (view === 'cfg') return `<tr><td><b>${esc(pname(x.p))}</b><br><span class="mono small muted">${esc(x.p)}</span></td><td>${ohModeCell(x, wk)}</td><td class="num"><b>${fmt(x.predH, 0)} h</b></td><td class="num">${eur(x.predE)}</td><td class="num small muted">${String(x.r).replace('.', ',')} €/h</td></tr>`;
+    return `<tr><td><b>${esc(pname(x.p))}</b><br><span class="mono small muted">${esc(x.p)}</span></td><td class="num">${fmt(x.predH, 0)} h<br><span class="small muted">${eur(x.predE)}</span></td><td class="num">${sqCell}</td><td class="num">${x.sqH != null ? fmt(x.sqH, 0) + ' h' : '–'}</td><td class="num">${de == null ? '–' : `<span class="tag ${Math.abs(de) < 1 ? 'neutral' : de > 0 ? 'crit' : 'good'}">${Math.abs(de) < 1 ? 'beze změny' : sgn(de)}</span>`}</td></tr>`;
   }).join('');
-  return `<div class="card"><h2>Režie a projekty bez vazby na linku – ${cw(wk)}</h2>
-    <p class="small muted">Predikce: <b>hodin / týden</b> = pevný počet hodin, <b>lidí × ${HC_NORM} h</b> = paušál podle počtu lidí, <b>% z hodin linek</b> = podíl z predikce hodin na linkách (${fmt(lineBud, 0)} h). ${canCfg() ? 'Způsob a hodnotu nastavuješ ty – prázdné pole = průměr posledních 3 týdnů z docházky; přepiš na cílový stav.' : ''} ${sp ? 'Support Q zadá počet lidí na týden.' : 'Počet lidí doplní Support Q spolu s plánem na linky.'}</p>
-    <div class="tbl-wrap"><table><thead><tr><th>Projekt</th><th>Popis</th><th>Predikce – způsob</th><th class="num">Predikce h</th><th class="num">Predikce €</th><th class="num">Plán SQ lidí</th><th class="num">Plán SQ h</th><th class="num">Změna nákladu</th></tr></thead>
-    <tbody>${rows}</tbody><tfoot><tr><td colspan="3"><b>Celkem režie</b></td><td class="num"><b>${fmt(tP, 0)}</b></td><td class="num"><b>${eur(tPE)}</b></td><td></td><td class="num"><b>${hasSq ? fmt(tS, 0) : '–'}</b></td><td class="num"><b>${hasSq ? (Math.abs(tSE - tPE) < 1 ? 'beze změny' : sgn(tSE - tPE)) : '–'}</b></td></tr></tfoot></table></div></div>`;
+  if (view === 'cfg') return `<h3>Režie – jak se predikuje</h3>
+    <p class="small muted"><b>hodin / týden</b> = pevný počet hodin (prázdné pole = průměr posledních 3 týdnů z docházky) · <b>lidí × ${HC_NORM} h</b> = paušál · <b>% z hodin linek</b> = podíl z predikce linek (${fmt(lineBud, 0)} h).</p>
+    <div class="tbl-wrap"><table><thead><tr><th>Projekt</th><th>Způsob a hodnota</th><th class="num">Predikce</th><th class="num">€</th><th class="num">Sazba</th></tr></thead><tbody>${rows}</tbody>
+    <tfoot><tr><td colspan="2"><b>Celkem režie</b></td><td class="num"><b>${fmt(tP, 0)} h</b></td><td class="num"><b>${eur(tPE)}</b></td><td></td></tr></tfoot></table></div>`;
+  return `<h3 style="margin-top:1rem">Režie (projekty bez vazby na linku) – počet lidí na týden</h3>
+    <p class="small muted">${canEdit ? 'Zadejte, kolik lidí na projekt v týdnu nasadíte (1 člověk = ' + HC_NORM + ' h). Předvyplněno podle predikce.' : 'Počet lidí na týden od Support Q.'}</p>
+    <div class="tbl-wrap"><table><thead><tr><th>Projekt</th><th class="num">Predikce</th><th class="num">Lidí (Support Q)</th><th class="num">Hodin</th><th class="num">Změna nákladu</th></tr></thead>
+    <tbody>${rows}</tbody><tfoot><tr><td><b>Celkem režie</b></td><td class="num"><b>${fmt(tP, 0)} h</b><br><span class="small muted">${eur(tPE)}</span></td><td></td><td class="num"><b>${hasSq ? fmt(tS, 0) + ' h' : '–'}</b></td><td class="num"><b>${hasSq ? (Math.abs(tSE - tPE) < 1 ? 'beze změny' : sgn(tSE - tPE)) : '–'}</b></td></tr></tfoot></table></div>`;
 }
 const sqPlanHours = days => (days || []).reduce((s, v) => s + 12 * (v.d + v.n), 0);
 function sqPlanSet(wk, p, i, k, v){
@@ -2268,6 +2285,99 @@ function planWaiting(wk){
       ${steps}
       ${lw ? `<p class="small muted" style="margin-top:.6rem">Pro plánování se použijí projekty aktivní v ${cw(lw)} (${act.length}).</p>` : ''}</div>`;
 }
+
+// ================= Přehled týdne: postup → predikce × plán SQ × skutečnost → projekty =================
+function weekModel(wk){
+  const ds = weekDates(wk), dset = new Set(ds), cov = weekCovered(wk), sp = sqPlanOf(wk), hcp = (META.hcp || {})[wk] || {};
+  const hoursP = [...new Set(Object.keys(ROWS).filter(k => dset.has(k.slice(0, 10)) && ROWS[k][0] + ROWS[k][1] > 0).map(k => k.slice(11)))];
+  const base = cov ? [...hoursP, ...Object.keys(hcp).filter(p => +hcp[p] > 0), ...activeProjects(wk)] : activeProjects(wk);
+  const all = [...new Set([...base, ...(sp ? Object.keys(sp.p) : [])])];
+  const lines = all.filter(p => lineMapFor(p).length).map(p => {
+    const pw = projectWeek(p, wk), days = ((forwardData(wk, [pw])[0]) || {}).days || [], sqd = sp ? sp.p[p] : null;
+    return { p, kind:'line', predH: pw.budget, predE: days.length ? costDays(p, wk, days) : 0,
+      sqH: sp ? (sqd ? sqPlanHours(sqd) : 0) : null, sqE: sp ? (sqd ? costDays(p, wk, sqd) : 0) : null,
+      actH: cov ? pw.act : null, actE: cov ? costActual(p, wk) : null };
+  });
+  const lineBud = lines.reduce((t, x) => t + x.predH, 0);
+  const oh = ohRows(wk, lineBud, ohProjects(wk, all.filter(p => !lineMapFor(p).length))).map(x => ({ p: x.p, kind:'oh', predH: x.predH, predE: x.predE,
+      sqH: sp ? (x.sqH ?? x.predH) : null, sqE: sp ? (x.sqE ?? x.predE) : null, actH: cov ? x.act : null, actE: cov ? x.actE : null }));
+  const rows = [...lines, ...oh].filter(x => x.predH || x.sqH || x.actH);
+  const T = k => rows.reduce((t, x) => t + (x[k] || 0), 0);
+  const hcT = Object.values(hcp).reduce((t, v) => t + (+v || 0), 0);
+  return { wk, cov, sp, lines: lines.filter(x => x.predH || x.sqH || x.actH), oh: oh.filter(x => x.predH || x.sqH || x.actH), rows,
+    tot: { predH: T('predH'), predE: T('predE'), sqH: sp ? T('sqH') : null, sqE: sp ? T('sqE') : null, actH: cov ? T('actH') : null, actE: cov ? T('actE') : null }, hcT };
+}
+const pctTxt = (a, b) => b ? ((a - b) / b > 0 ? '+' : '') + fmt((a - b) / b * 100, 0) + ' %' : '';
+function diffChip(d, base){
+  if (d == null) return '<span class="muted">–</span>';
+  if (Math.abs(d) < 1) return '<span class="tag neutral">beze změny</span>';
+  const r = base ? d / base : 1, cls = r > .05 ? 'crit' : r < -.05 ? 'good' : 'neutral';
+  return `<span class="tag ${cls}">${sgn(d)}</span>`;
+}
+function diffBar(d, max){
+  if (d == null || !max) return '';
+  const w = Math.min(50, Math.abs(d) / max * 50);
+  return `<span class="dbar"><i class="${d > 0 ? 'up' : 'dn'}" style="width:${w}%;${d > 0 ? 'left:50%' : 'right:50%'}"></i></span>`;
+}
+function planOverview(wk, pw, shT, shP){
+  const M = weekModel(wk), t = M.tot, st = sqPlanStatus(wk), dl = sqDeadline(wk), prev = planIsPreview(wk);
+  const tueDl = addDays(weekDates(wk)[0], 8);
+  const steps = [
+    { n:1, t:'Plán výroby', v: prev ? 'výhled' : 'nahrán', sub: `${shT} směn${shP != null ? ' · ' + pctTxt(shT, shP) + ' proti ' + cw(pw) : ''}`, cls: prev ? 'warn' : 'good' },
+    { n:2, t:'Predikce', v: eur(t.predE), sub: `${fmt(t.predH, 0)} h podle plánu výroby`, cls:'good' },
+    { n:3, t:'Plán Support Q', v: st.tag.toLowerCase(), sub: M.sp ? eur(t.sqE) + ' · ' + fmt(t.sqH, 0) + ' h' : `termín pá ${dl.getDate()}. ${dl.getMonth() + 1}. 12:00`, cls: st.cls },
+    { n:4, t:'Docházka', v: M.cov === 7 ? 'nahrána' : M.cov ? `${M.cov}/7 dní` : 'čeká', sub: M.cov ? eur(t.actE) + ' · ' + fmt(t.actH, 0) + ' h' : `po týdnu, út ${fmtD(tueDl)} 12:00`, cls: M.cov === 7 ? 'good' : M.cov ? 'warn' : 'neutral' },
+  ];
+  const stepper = `<div class="stepper">${steps.map(x => `<div class="step st-${x.cls}"><div class="st-n">${x.cls === 'good' ? '✓' : x.n}</div><div><div class="st-t">${x.t}</div><div class="st-v">${x.v}</div><div class="st-s">${x.sub}</div></div></div>`).join('')}</div>`;
+  const vals = [t.predE, t.sqE, t.actE].filter(v => v != null), mx = Math.max(1, ...vals);
+  const card = (cls, lbl, e, h, sub, empty) => `<div class="hc hc-${cls}"><div class="hc-l">${lbl}</div>${e != null
+      ? `<div class="hc-big">${eur(e)}</div><div class="hc-h">${fmt(h, 0)} h</div><div class="hc-bar"><i style="width:${Math.max(2, e / mx * 100)}%"></i></div><div class="hc-s">${sub}</div>`
+      : `<div class="hc-big muted">–</div><div class="hc-s">${empty}</div>`}</div>`;
+  const dSq = t.sqE != null ? t.sqE - t.predE : null, dAct = t.actE != null ? t.actE - t.predE : null;
+  const hero = `<div class="hero">
+    ${card('pred', 'Predikce <span>podle plánu výroby</span>', t.predE, t.predH, `linky ${eur(M.lines.reduce((a, x) => a + x.predE, 0))} · režie ${eur(M.oh.reduce((a, x) => a + x.predE, 0))}`, '')}
+    ${card('sq', 'Plán Support Q <span>kolik lidí nasadí</span>', t.sqE, t.sqH, dSq != null ? `${diffChip(dSq, t.predE)} proti predikci` : '', `Support Q vyplní do pá ${dl.getDate()}. ${dl.getMonth() + 1}. 12:00`)}
+    ${card(dAct == null ? 'act' : dAct > t.predE * .05 ? 'bad' : 'act', 'Skutečnost <span>z docházky</span>', t.actE, t.actH, dAct != null ? `${diffChip(dAct, t.predE)} proti predikci${M.cov < 7 ? ` · jen ${M.cov}/7 dní` : ''}` : '', 'po nahrání docházky za týden')}
+  </div>`;
+  // verdikt jednou větou + největší rozdíly
+  const key = t.actE != null && M.cov === 7 ? 'act' : t.sqE != null ? 'sq' : null;
+  const top = key ? [...M.rows].map(x => ({ x, d: (x[key + 'E'] ?? 0) - x.predE })).filter(y => Math.abs(y.d) >= 50).sort((a, b) => Math.abs(b.d) - Math.abs(a.d)).slice(0, 3) : [];
+  const topTxt = top.length ? `<div class="vd-top">Největší rozdíly: ${top.map(y => `<b>${esc(pname(y.x.p) || y.x.p)}</b> ${sgn(y.d)}`).join(' · ')}</div>` : '';
+  let verdict;
+  if (key === 'act'){ const d = t.actE - t.predE; verdict = `<div class="pverdict ${d > t.predE * .05 ? 'v-bad' : d < -t.predE * .05 ? 'v-good' : 'v-ok'}">Skutečnost ${cw(wk)} je <b>${eur(t.actE)}</b> – ${Math.abs(d) < 1 ? 'přesně podle predikce' : `o <b>${fmtKc(Math.abs(d))}</b> (${pctTxt(t.actE, t.predE)}) ${d > 0 ? 'nad' : 'pod'} predikcí`}.${t.sqE != null ? ` Support Q plánoval ${eur(t.sqE)}.` : ''}${topTxt}</div>`; }
+  else if (key === 'sq'){ const d = t.sqE - t.predE; verdict = `<div class="pverdict ${d > t.predE * .05 ? 'v-bad' : d < -1 ? 'v-good' : 'v-ok'}">Support Q plánuje <b>${eur(t.sqE)}</b> – ${Math.abs(d) < 1 ? 'stejně jako predikce, náklad se nemění' : `o <b>${fmtKc(Math.abs(d))}</b> (${pctTxt(t.sqE, t.predE)}) ${d > 0 ? 'víc' : 'méně'} než predikce`}.${topTxt}</div>`; }
+  else verdict = `<div class="pverdict v-ok">Podle plánu výroby počítáme s náklady <b>${eur(t.predE)}</b> (${fmt(t.predH, 0)} h). Čekáme na plán lidí od Support Q – termín pá ${dl.getDate()}. ${dl.getMonth() + 1}. 12:00.</div>`;
+  // tabulka projektů
+  const cmpKey = t.actE != null ? 'act' : t.sqE != null ? 'sq' : null;
+  const maxD = Math.max(1, ...M.rows.map(x => cmpKey ? Math.abs((x[cmpKey + 'E'] ?? 0) - x.predE) : 0));
+  const cellM = (e, h) => e == null ? '<span class="muted">–</span>' : `<div class="e">${eur(e)}</div><div class="h">${fmt(h, 0)} h</div>`;
+  const row = x => { const d = cmpKey ? (x[cmpKey + 'E'] ?? 0) - x.predE : null; return `<tr><td><b>${esc(pname(x.p) || x.p)}</b><div class="small muted"><span class="mono">${esc(x.p)}</span>${x.kind === 'line' ? ' · ' + esc(lineMapFor(x.p).slice(0, 3).join(', ')) + (lineMapFor(x.p).length > 3 ? '…' : '') : ''}</div></td>
+      <td class="num">${cellM(x.predE, x.predH)}</td><td class="num">${cellM(x.sqE, x.sqH)}</td><td class="num">${cellM(x.actE, x.actH)}</td><td class="num">${diffChip(d, x.predE || 1)}${diffBar(d, maxD)}</td></tr>`; };
+  const sub = (lbl, arr) => { const S = k => arr.reduce((a, x) => a + (x[k] || 0), 0); const d = cmpKey ? arr.reduce((a, x) => a + ((x[cmpKey + 'E'] ?? 0) - x.predE), 0) : null;
+    return `<tr class="grp"><td>${lbl}</td><td class="num">${eur(S('predE'))}</td><td class="num">${t.sqE != null ? eur(S('sqE')) : '–'}</td><td class="num">${t.actE != null ? eur(S('actE')) : '–'}</td><td class="num">${diffChip(d, S('predE'))}</td></tr>`; };
+  const srt = a => [...a].sort((x, y) => y.predE - x.predE || (y.actE || 0) - (x.actE || 0));
+  const table = `<div class="card"><div class="row" style="justify-content:space-between;align-items:center"><h2>Projekty – ${cw(wk)}</h2>${canCfg() && M.cov === 0 ? `<button class="btn sm secondary" id="planCopy" data-wk="${wk}">📋 Kopírovat pro Support Q</button>` : ''}</div>
+    <div class="tbl-wrap"><table class="ptab"><thead><tr><th>Projekt</th><th class="num">Predikce</th><th class="num">Plán Support Q</th><th class="num">Skutečnost</th><th class="num">Rozdíl proti predikci</th></tr></thead>
+    <tbody>${sub('🏭 Linky (výroba)', M.lines)}${srt(M.lines).map(row).join('')}${sub('🧰 Režie (bez vazby na linku)', M.oh)}${srt(M.oh).map(row).join('')}</tbody>
+    <tfoot><tr><td><b>Celkem</b></td><td class="num">${cellM(t.predE, t.predH)}</td><td class="num">${cellM(t.sqE, t.sqH)}</td><td class="num">${cellM(t.actE, t.actH)}</td><td class="num">${cmpKey ? diffChip(t[cmpKey + 'E'] - t.predE, t.predE) : ''}</td></tr></tfoot></table></div>
+    <p class="small muted" style="margin:.5rem 0 0">Rozdíl = ${cmpKey === 'act' ? 'skutečnost' : cmpKey === 'sq' ? 'plán Support Q' : 'plán Support Q / skutečnost'} − predikce. Červeně = dráž, zeleně = levněji.</p></div>`;
+  return stepper + hero + verdict + table;
+}
+function lineMapCard(wk, allP){
+  const lineNames = planLinesOf(wk);
+  return `<details class="card"><summary><b>Přiřazení projektů k linkám</b> <span class="muted small">– podle čeho se počítají dny s výrobou</span></summary>
+      <p class="small muted">Linky odděl středníkem „;“. Prázdné pole = projekt nemá vazbu na linku (počítá se jako režie).</p>
+      <datalist id="lineList">${lineNames.map(n => `<option value="${esc(n)}">`).join('')}</datalist>
+      <table><tbody>${[...new Set([...allP, ...Object.keys(DEFAULT_LINEMAP)])].sort().map(p => `<tr><td class="mono">${esc(p)}</td><td class="desc">${esc(pname(p))}</td><td style="width:55%"><input style="width:100%" data-lmap="${p}" value="${esc(lineMapFor(p).join('; '))}" list="lineList"></td></tr>`).join('')}</tbody></table></details>`;
+}
+document.addEventListener('toggle', e => { const d = e.target; if (d.dataset && d.dataset.sec){ UI.planOpen = UI.planOpen || {}; UI.planOpen[d.dataset.sec] = d.open; } }, true);
+function planMethod(){
+  return `<details class="card small"><summary>ℹ️ <b>Jak se to počítá</b></summary><ul style="margin:.5rem 0 0 1.1rem;line-height:1.7">
+    <li><b>Predikce linek:</b> ve dnech, kdy podle plánu výroby jede linka projektu, počítáme lidi ve dne (6–18) a v noci (18–6) × 12 h. Počet lidí = dosavadní nasazení Support Q, nebo cíl nastavený správcem.</li>
+    <li><b>Predikce režie</b> (koordinátoři, administrativa, laboratoř, reklamace, rework…): průměr posledních 3 týdnů, nebo hodnota nastavená správcem.</li>
+    <li><b>Náklad</b> = hodiny × sazba projektu (SQ náklady 10/2026: OP 16,5 · Senior 18,5 · Admin 20 · Koord 23 · PM 26 · Rezident 44 · Gaden 33 €/h). Noc bez příplatku.</li>
+    <li><b>Plán Support Q</b> vyplňuje Support Q do pátku 12:00 před týdnem; <b>skutečnost</b> je z docházky (úterý 12:00 po týdnu).</li></ul></details>`;
+}
 function renderPlan(){
   const el = $('planBody'); if (!el) return;
   const nextWk = isoWeek(addDays(todayISO(), 7));
@@ -2293,7 +2403,17 @@ function renderPlan(){
   const pct = (a, b) => b ? (a - b) / b : null, fp = v => v == null ? '' : (v > 0 ? '+' : '') + fmt(v * 100, 0) + ' %';
   const dCls = (d, base) => base ? (d / base > .1 ? 'crit' : d / base < -.1 ? 'good' : 'neutral') : 'neutral';
   const tile = (lbl, val, unit, sub, tag) => `<div class="kpi"><div class="lbl">${lbl}${tag ? ' ' + tag : ''}</div><div class="val">${val}<span class="small muted"> ${unit}</span></div><div class="sub">${sub}</div></div>`;
-  if (weekCovered(wk) === 0){ el.innerHTML = planForward(wk, pw, L, O, ls, lsp, shT, shP, allP, lineNames0(wk)); return; }
+  const OV = planOverview(wk, pw, shT, shP);
+  const lmCard = canCfg() ? lineMapCard(wk, allP) : '';
+  if (weekCovered(wk) === 0){
+    const P = planForward(wk, pw, L, O, ls, lsp, shT, shP, allP, lineNames0(wk)), sp = sqPlanOf(wk), openSq = store.role === 'editor' || (store.mode !== 'fb' && !sp);
+    el.innerHTML = `${P.note}${OV}
+      ${store.canWrite || sp ? `<details class="card sect" data-sec="sq" ${(UI.planOpen && UI.planOpen.sq != null ? UI.planOpen.sq : openSq) ? 'open' : ''}><summary>✏️ <b>Plán lidí od Support Q</b> <span class="muted small">– ${store.canWrite ? 'vyplnit / upravit' : 'zobrazit'}</span></summary>${P.sq}${sp ? P.ohSq : ''}</details>` : ''}
+      ${canCfg() ? `<details class="card sect" data-sec="cfg" ${UI.planOpen && UI.planOpen.cfg ? 'open' : ''}><summary>⚙️ <b>Nastavení predikce</b> <span class="muted small">– lidé na směnu, režie, sazby, linky (jen správce)</span></summary>${P.yf}<div class="card">${P.ohCfg}</div>${ratesCard()}${lmCard}</details>` : ''}
+      ${P.grid}
+      ${planMethod()}`;
+    return;
+  }
   const covWarn = weekCovered(wk) < 7 ? `<div class="warnbox">Docházka za ${cw(wk)} je nahraná jen za ${weekCovered(wk)}/7 dní – skutečnost bude nižší.</div>` : '';
   const hpTag = hpp == null ? '' : `<span class="tag ${hpp > 60 ? 'crit' : hpp > 48 ? 'warn' : 'good'}">${hpp > 60 ? 'OVĚŘIT' : hpp > 48 ? 'PŘESČAS' : 'V MODELU'}</span>`;
   const editable = canCfg(), spW = sqPlanOf(wk);
@@ -2317,7 +2437,8 @@ function renderPlan(){
     const a = ls[n] || 0, b = lsp ? (lsp[n] || 0) : null, used = allP.some(p => lineMapFor(p).includes(n));
     return `<tr><td>${esc(n)}${used ? ' <span class="tag info">SQ</span>' : ''}</td><td>${cells}</td><td class="num">${b ?? '–'}</td><td class="num"><b>${a}</b></td><td class="num">${b != null && a !== b ? `<span class="tag ${a > b ? 'good' : 'crit'}">${a > b ? '+' : ''}${a - b}</span>` : ''}</td></tr>`;
   }).join('');
-  el.innerHTML = `${covWarn}
+  el.innerHTML = `${covWarn}${OV}
+    <details class="card sect" data-sec="ana" ${UI.planOpen && UI.planOpen.ana ? 'open' : ''}><summary>📊 <b>Podrobná analýza</b> <span class="muted small">– směny, hodiny mimo plán výroby, headcount, hodiny na osobu</span></summary>
     <div class="grid-kpi">
       ${tile('Budget dle plánu výroby', fmt(bud, 0), 'h', `skutečnost ${fmt(actL, 0)} h · <b>${actL - bud > 0 ? '+' : ''}${fmt(actL - bud, 0)} h</b> (${fp(pct(actL, bud))})`, `<span class="tag ${dCls(actL - bud, bud)}">${actL - bud > bud * .1 ? 'NAD' : actL - bud < -bud * .1 ? 'POD' : 'OK'}</span>`)}
       ${tile('Budget dle headcountu', fmt(hcBud, 0), 'h', `${hcT} lidí × ${HC_NORM} h · skutečnost ${fmt(actT, 0)} h · <b>${actT - hcBud > 0 ? '+' : ''}${fmt(actT - hcBud, 0)} h</b>`, `<span class="tag ${dCls(actT - hcBud, hcBud)}">${actT - hcBud > hcBud * .1 ? 'NAD' : actT - hcBud < -hcBud * .1 ? 'POD' : 'OK'}</span>`)}
@@ -2336,17 +2457,13 @@ function renderPlan(){
       <div class="tbl-wrap"><table><thead><tr><th>Projekt</th><th>Popis</th><th>Predikce – způsob</th><th class="num">Predikce h</th>${spW ? '<th class="num">Plán SQ h</th>' : ''}<th class="num">Skutečnost h</th><th class="num">Δ h</th><th class="num">HC</th><th class="num">h / os.</th></tr></thead>
       <tbody>${OHA.map(x => { const d = x.act - x.predH, hp = x.hc ? x.act / x.hc : null; return `<tr><td class="mono">${esc(x.p)}</td><td class="desc">${esc(pname(x.p))}</td><td>${ohModeCell(x, wk)}</td><td class="num"><b>${fmt(x.predH, 0)}</b></td>${spW ? `<td class="num">${x.sqH != null ? fmt(x.sqH, 0) : '–'}</td>` : ''}<td class="num">${fmt(x.act, 1)}</td><td class="num"><span class="tag ${dCls(d, x.predH || 1)}">${d > 0 ? '+' : ''}${fmt(d, 0)}</span></td><td class="num">${x.hc ?? '–'}</td><td class="num">${hp != null ? `<span class="${hp > 48 ? 'crit-t' : ''}">${fmt(hp, 1)}</span>` : '–'}</td></tr>`; }).join('')}</tbody>
       <tfoot><tr><td colspan="3"><b>Celkem režie</b></td><td class="num"><b>${fmt(ohPredW, 0)}</b></td>${spW ? `<td class="num"><b>${fmt(OHA.reduce((s, x) => s + (x.sqH ?? 0), 0), 0)}</b></td>` : ''}<td class="num"><b>${fmt(actO, 0)}</b></td><td class="num"><b>${actO - ohPredW > 0 ? '+' : ''}${fmt(actO - ohPredW, 0)}</b></td><td class="num">${sum(O, 'hc')}</td><td class="num">${sum(O, 'hc') ? fmt(actO / sum(O, 'hc'), 1) : '–'}</td></tr></tfoot></table></div></div>
+    </details>
+    ${canCfg() ? `<details class="card sect" data-sec="cfg" ${UI.planOpen && UI.planOpen.cfg ? 'open' : ''}><summary>⚙️ <b>Nastavení predikce</b> <span class="muted small">– sazby a přiřazení linek (jen správce)</span></summary>${ratesCard()}${lmCard}</details>` : ''}
     <details class="card"><summary><b>Plán výroby ${cw(wk)} po linkách</b> <span class="muted small">– směny ${pw ? cw(pw) + ' → ' : ''}${cw(wk)}</span></summary>
       <div class="small muted" style="margin:.5rem 0"><i class="pg-v lg"></i> výroba <i class="pg-x lg"></i> bez výroby <i class="pg-t lg"></i> TBA <i class="pg-s lg"></i> servis · každý den 3 směny: ranní 6–14, odpolední 14–22, noční 22–6 · <span class="tag info">SQ</span> = linka s projektem Support Q</div>
       <div class="tbl-wrap"><table><thead><tr><th>Linka</th><th>${ds.map(d => `<span class="pg-h">${['Po','Út','St','Čt','Pá','So','Ne'][dow(d)]} ${dObj(d).getUTCDate()}.</span>`).join('')}</th><th class="num">${pw ? cw(pw) : ''}</th><th class="num">${cw(wk)}</th><th class="num">Δ</th></tr></thead><tbody>${grid}</tbody>
       <tfoot><tr><td><b>Celkem</b></td><td></td><td class="num">${shP ?? '–'}</td><td class="num"><b>${shT}</b></td><td class="num">${shP != null ? (shT - shP > 0 ? '+' : '') + (shT - shP) : ''}</td></tr></tfoot></table></div></details>
-    ${editable ? `<details class="card"><summary><b>Přiřazení projektů k linkám</b> <span class="muted small">– podle čeho se počítají bloky</span></summary>
-      <p class="small muted">Linky odděl středníkem „;“. Prázdné pole = projekt nemá vazbu na linku (počítá se jen budget dle headcountu).</p>
-      <datalist id="lineList">${lineNames.map(n => `<option value="${esc(n)}">`).join('')}</datalist>
-      <table><tbody>${[...new Set([...allP, ...Object.keys(DEFAULT_LINEMAP)])].sort().map(p => `<tr><td class="mono">${esc(p)}</td><td class="desc">${esc(pname(p))}</td><td style="width:55%"><input style="width:100%" data-lmap="${p}" value="${esc(lineMapFor(p).join('; '))}" list="lineList"></td></tr>`).join('')}</tbody></table></details>` : ''}
-    ${ratesCard()}
-    <div class="card small muted"><b>Metodika:</b> Support Q pracuje ve 12h modelu – denní osoba 6–18 (8 h ranní + 4 h odpolední směny), noční 18–6 (4 h odpolední + 8 h noční). Počet lidí z docházky: noční = noční hodiny / 8, denní = (denní hodiny − 4 × noční) / 12.
-      „Mimo plán“ = hodiny, kdy žádná z linek projektu nejela (nemusí být zbytečné – kontrola zásoby, rework; slouží jako podklad k otázkám). Budget dle headcountu = počet lidí na projektu, který zadal Support Q, × ${HC_NORM} h (průměr 12h modelu); nad 48 h na osobu = přesčas.</div>`;
+    ${planMethod()}`;
 }
 // po úpravě počtu lidí překreslit až po opuštění polí, ať kurzor neskáče při přechodu tabulátorem
 function planRenderSoon(){ setTimeout(() => { const a = document.activeElement; if (a && a.dataset && a.dataset.crew) return; renderPlan(); }, 150); }
