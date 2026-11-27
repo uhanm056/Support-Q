@@ -123,6 +123,8 @@ table.ptab tr.grp td{background:var(--navy-soft);font-weight:700;font-size:.86re
 details.sect>summary{font-size:1rem;padding:.2rem 0}details.sect[open]>summary{margin-bottom:.6rem}
 @media (max-width:900px){.stepper{grid-template-columns:repeat(2,minmax(0,1fr))}.hero{grid-template-columns:minmax(0,1fr)}}
 .cost-s{font-size:.74rem;color:var(--navy);font-weight:600}
+.cost-m{font-family:var(--f-mono);font-weight:700;color:var(--navy)}
+[data-theme="dark"] .cost-m{color:#8DB8F0}
 [data-theme="dark"] .cost-s{color:#8DB8F0}
 tr.cost-row td{background:var(--navy-soft)}
 .verdict .v-cost{text-align:right;border-left:1px solid rgba(255,255,255,.35);padding-left:1rem}
@@ -1243,16 +1245,16 @@ function renderTrend(){
 
   <h2 style="margin-top:1.25rem">Projekty – hodiny, náklady a lidé po týdnech</h2>
   <div class="tbl-wrap" style="max-height:none"><table class="multi-foot">
-    <thead><tr><th>Projekt</th><th>Popis</th><th class="num">Lidí ${cw(wk)}</th><th class="num">h/os</th><th>Vytížení</th>${wks.map(w => `<th class="num">${cw(w)}${weekCovered(w) < 7 ? '*' : ''}<div style="font-weight:400;text-transform:none">h · € · lidí</div></th>`).join('')}<th class="num">Δ h</th><th>Trend</th></tr></thead>
+    <thead><tr><th>Projekt</th><th>Popis</th><th class="num">Lidí ${cw(wk)}</th><th class="num">h/os</th><th>Vytížení</th>${wks.map(w => `<th class="num">${cw(w)}${weekCovered(w) < 7 ? '*' : ''}<div style="font-weight:400;text-transform:none">€ · h · lidí</div></th>`).join('')}<th class="num">Δ h</th><th>Trend</th></tr></thead>
     <tbody>${lines.map(l => `<tr><td class="mono">${esc(l.p)}</td><td class="desc">${esc(pname(l.p))}</td>
       <td class="num">${store.canWrite ? `<input class="hcin" type="number" min="0" step="0.5" inputmode="decimal" data-hcp="${esc(l.p)}" data-wk="${wk}" data-h="${l.c1 * 7 / (C.cov || 7)}" value="${l.nNow ?? ''}" aria-label="Počet lidí ${esc(l.p)}">` : fmt(l.nNow, 1)}</td>
       <td class="num">${fmt(l.hpp, 1)}</td><td><span class="tag ${l.hr.cls}">${l.hr.label}</span></td>
-      ${l.v.map((v, j) => `<td class="num ${v ? '' : 'zero'}">${fmt(v)}${v ? `<div class="cost-s">${fmtKc(l.ev[j])}</div>` : ''}${l.n[j] != null ? `<div class="small muted">${fmt(l.n[j], 1)} lidí</div>` : ''}</td>`).join('')}
+      ${l.v.map((v, j) => `<td class="num ${v ? '' : 'zero'}">${v ? `<div class="cost-m">${fmtKc(l.ev[j])}</div><div class="small">${fmt(v)} h</div>` : fmt(v)}${l.n[j] != null ? `<div class="small muted">${fmt(l.n[j], 1)} lidí</div>` : ''}</td>`).join('')}
       <td class="num">${l.d != null ? (l.d > 0 ? '+' : '') + fmt(l.d) : '–'}</td>
       <td><span class="tag ${l.rg.cls}">${l.rg.label}</span> <span class="mono small">${l.rg.pct != null ? pct(l.rg.pct) : ''}</span></td></tr>`).join('')}</tbody>
     <tfoot>
-      <tr><td colspan="2">Hodiny celkem</td><td class="num">${fmt(hcpSum(wk), 1)}</td><td colspan="2" class="small muted">součet lidí na projektech</td>${wks.map(w => `<td class="num">${fmt(weekSum(rows, w).t)}${hcpSum(w) != null ? `<div class="small muted">${fmt(hcpSum(w), 1)} lidí</div>` : ''}</td>`).join('')}<td class="num">${comp ? (C.t - P.t > 0 ? '+' : '') + fmt(C.t - P.t) : '–'}</td><td><span class="tag ${comp ? rag(C.t, P.t).cls : 'neutral'}">${comp ? rag(C.t, P.t).label : '–'}</span></td></tr>
       <tr class="cost-row"><td colspan="5"><b>Náklady celkem</b></td>${wks.map(w => `<td class="num"><b>${fmtKc(weekCost(rows, w))}</b></td>`).join('')}<td colspan="2"></td></tr>
+      <tr><td colspan="2">Hodiny celkem</td><td class="num">${fmt(hcpSum(wk), 1)}</td><td colspan="2" class="small muted">součet lidí na projektech</td>${wks.map(w => `<td class="num">${fmt(weekSum(rows, w).t)}${hcpSum(w) != null ? `<div class="small muted">${fmt(hcpSum(w), 1)} lidí</div>` : ''}</td>`).join('')}<td class="num">${comp ? (C.t - P.t > 0 ? '+' : '') + fmt(C.t - P.t) : '–'}</td><td><span class="tag ${comp ? rag(C.t, P.t).cls : 'neutral'}">${comp ? rag(C.t, P.t).label : '–'}</span></td></tr>
       ${HC_FIELDS.map(([k, l]) => hcRow(l, h => h[k])).join('')}
       ${hcRow('Headcount celkem', h => h.t)}
       ${hcRow('Hodin na osobu', (h, w) => h.t ? weekSum(rows, w).t * 7 / (weekCovered(w) || 7) / h.t : null)}
