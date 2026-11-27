@@ -122,6 +122,11 @@ table.ptab tr.grp td{background:var(--navy-soft);font-weight:700;font-size:.86re
 .dbar i{position:absolute;top:0;height:100%;border-radius:3px}.dbar i.up{background:var(--crit)}.dbar i.dn{background:var(--good)}
 details.sect>summary{font-size:1rem;padding:.2rem 0}details.sect[open]>summary{margin-bottom:.6rem}
 @media (max-width:900px){.stepper{grid-template-columns:repeat(2,minmax(0,1fr))}.hero{grid-template-columns:minmax(0,1fr)}}
+.cost-s{font-size:.74rem;color:var(--navy);font-weight:600}
+[data-theme="dark"] .cost-s{color:#8DB8F0}
+tr.cost-row td{background:var(--navy-soft)}
+.verdict .v-cost{text-align:right;border-left:1px solid rgba(255,255,255,.35);padding-left:1rem}
+@media (min-width:1600px){ .kt-grid{grid-template-columns:repeat(7,minmax(0,1fr))} }
 .okbox{border-left:4px solid var(--good);background:color-mix(in srgb,var(--good) 10%,var(--surface));padding:.6rem .8rem;border-radius:8px;margin:.5rem 0;font-size:.9rem}
 .chart svg{width:100%;height:auto;display:block}
 .chart text{font-family:var(--f-text);fill:var(--muted);font-size:11px}
@@ -850,12 +855,9 @@ function weekSum(rows, wk){ const ds = new Set(weekDates(wk)); return sum(rows.f
 
 function orderRate(o){ return { rd: o.rd, rn: o.rn != null ? o.rn : o.rd }; }
 function orderFor(p, d){ return META.orders.filter(o => o.projects.includes(p) && (!o.from || d >= o.from) && (!o.to || d <= o.to)); }
-function rowCost(r){
-  const os = orderFor(r.p, r.d).filter(o => o.rd != null);
-  if (!os.length) return null;
-  const { rd, rn } = orderRate(os[0]);
-  return r.dh * rd + r.nh * rn;
-}
+function rowCost(r){ const x = rateAt(r.p, r.d); return r.dh * x.rd + r.nh * x.rn; }
+const costRows = rs => rs.reduce((a, r) => a + rowCost(r), 0);
+const weekCost = (rs, w) => { const ds = new Set(weekDates(w)); return costRows(rs.filter(r => ds.has(r.d))); };
 function orderStats(o, rows){
   const mine = rows.filter(r => o.projects.includes(r.p) && (!o.from || r.d >= o.from) && (!o.to || r.d <= o.to));
   const s = sum(mine);
@@ -947,6 +949,14 @@ function trendChart(rows, proj){
   return svg + '</svg>';
 }
 
+// Odhad nepokrytých dní měsíce: náklad stejného dne v týdnu z posledního úplného týdne
+function monthForecast(mk){
+  const dim = daysInMonth(mk), cov = new Set(META.cov), days = Array.from({ length: dim }, (_, i) => `${mk}-${String(i + 1).padStart(2, '0')}`);
+  const miss = days.filter(d => !cov.has(d)); if (!miss.length || miss.length === dim) return null;
+  const src = [...new Set(META.cov.map(isoWeek))].filter(w => weekCovered(w) === 7).sort().at(-1); if (!src) return null;
+  const rows = allRows(), byDow = weekDates(src).map(d => costRows(rows.filter(r => r.d === d)));
+  return { e: miss.reduce((a, d) => a + byDow[dow(d)], 0), src, n: miss.length };
+}
 function renderPrehled(){
   const months = monthsList();
   const el = $('prehledBody');
@@ -1004,7 +1014,7 @@ function renderPrehled(){
     <div class="card kpi"><div class="lbl">Hodin na osobu / týden</div><div class="val">${fmt(hpwM, 1)}</div>
       <div class="sub"><span class="tag ${HRM.cls}">${HRM.label}</span> norma 12h modelu Ø ${HC_NORM} h</div></div>
     <div class="card kpi"><div class="lbl">Náklady měsíce</div><div class="val">${costKnown ? fmtKc(costKnown) : '–'}</div>
-      <div class="sub">${hNoRate ? `<span class="tag warn">BEZ SAZBY</span> ${fmt(hNoRate)} h nelze ocenit` : 'všechny hodiny oceněny'}</div></div>
+      <div class="sub">${(() => { const fc = monthForecast(mk); return fc ? `za ${cov}/${dim} dní · <b>odhad celý měsíc ≈ ${fmtKc(costKnown + fc.e)}</b><br><span class="muted small">zbytek podle ${cw(fc.src)} (stejné dny v týdnu)</span>` : `za ${cov}/${dim} dní · sazby projektů`; })()}</div></div>
     <div class="card kpi"><div class="lbl">Objednávky v riziku</div><div class="val">${META.orders.length ? risk : '–'}</div>
       <div class="sub">${META.orders.length ? `<span class="tag ${risk ? 'crit' : 'good'}">${risk ? 'PŘEČERPÁNÍ' : 'OK'}</span> rychlé čerpání: ${fast}` : 'zatím žádné objednávky'}</div></div>
   </div>
@@ -1078,7 +1088,7 @@ function weekMetrics(w){
   const cov = weekCovered(w), h = hcGet(w);
   const wkd = sum(wr.filter(r => dow(r.d) >= 5)).t;
   const byP = {}; wr.forEach(r => byP[r.p] = (byP[r.p] || 0) + r.t);
-  return { w, cov, full: cov === 7, t: s.t, dh: s.dh, nh: s.nh, wkd, night: s.t ? s.nh / s.t : null,
+  return { w, cov, full: cov === 7, t: s.t, e: costRows(wr), dh: s.dh, nh: s.nh, wkd, night: s.t ? s.nh / s.t : null,
            hc: h.t, h, hpw: h.t ? s.t * 7 / (cov || 7) / h.t : null, proj: Object.values(byP).filter(v => v > 0).length };
 }
 /* lowerBetter = nižší hodnota je pro závod lepší (náklady) */
@@ -1152,6 +1162,7 @@ function renderTrend(){
   const sp = (f, cls) => sparkline(SM.map(f), fulls, cls);
 
   const cT = cmpMetric(C.t, P && P.t, comp);
+  const cE = cmpMetric(C.e, P && P.e, comp);
   const cHC = cmpMetric(C.hc, P && P.hc, !!(P && P.hc != null));
   const cHP = cmpMetric(C.hpw, P && P.hpw, comp && C.hpw != null && P.hpw != null);
   if (cHP.label === 'NESROVNATELNÉ' && C.hpw != null){ const a = hcRag(C.hpw); cHP.cls = a.cls; cHP.label = a.label; }
@@ -1170,6 +1181,7 @@ function renderTrend(){
 
   if (first) [cT, cHC, cN, cW].forEach(c => { if (c.label === 'NESROVNATELNÉ') c.label = 'PRVNÍ TÝDEN'; });
   const tiles = [
+    kpiTile({ lbl:'Náklady týdne', val: fmtKc(C.e).replace(' ' + cur(), ''), unit: cur(), c:cE, prevTxt: P ? `${cw(pw)}: ${fmtKc(P.e)}${P.full ? '' : ' (neúplný)'}` : '', spark: sp(m => m.full ? m.e : null, cE.cls), hint: C.t ? `Ø ${fmt(C.e / C.t, 2)} ${cur()}/h · sazby projektů` : '' }),
     kpiTile({ lbl:'Hodiny celkem', val: fmt(C.t), unit:'h', c:cT, prevTxt: P ? `${cw(pw)}: ${fmt(P.t)} h${P.full ? '' : ' (neúplný)'}` : '', spark: sp(m => m.full ? m.t : null, cT.cls), hint: `den ${fmt(C.dh)} · noc ${fmt(C.nh)}` }),
     kpiTile({ lbl:'Headcount', val: C.hc != null ? fmt(C.hc, 1) : '–', unit:'os.', c:cHC, prevTxt: P && P.hc != null ? `${cw(pw)}: ${fmt(P.hc, 1)} os.` : (P ? 'předch. týden nevyplněn' : ''), spark: sp(m => m.hc, cHC.cls), hint: C.hc != null ? HC_FIELDS.map(([k, l]) => `${l.split(' ')[0].toLowerCase()} ${fmt(C.h[k], 1)}`).join(' · ') : 'vyplň níže' }),
     kpiTile({ lbl:'Hodin na osobu / týden', val: C.hpw != null ? fmt(C.hpw, 1) : '–', unit:'h', c:cHP, prevTxt: P && P.hpw != null ? `${cw(pw)}: ${fmt(P.hpw, 1)} h` : '', spark: sp(m => m.full ? m.hpw : null, cHP.cls), hint: C.hpw != null ? `${hcRag(C.hpw).label} · norma 12h modelu Ø ${HC_NORM} h` : '' }),
@@ -1194,10 +1206,10 @@ function renderTrend(){
   // tabulka projektů
   const tprojs = [...new Set(rows.filter(r => wks.some(w => weekDates(w).includes(r.d))).map(r => r.p))];
   const lines = tprojs.map(p => {
-    const pr = rows.filter(r => r.p === p), v = wks.map(w => weekSum(pr, w).t), n = wks.map(w => hcpOf(w, p));
+    const pr = rows.filter(r => r.p === p), v = wks.map(w => weekSum(pr, w).t), n = wks.map(w => hcpOf(w, p)), ev = wks.map(w => weekCost(pr, w));
     const hNow = weekSum(pr, wk).t, nNow = hcpOf(wk, p), hpp = nNow ? hNow * 7 / (C.cov || 7) / nNow : null;
     const c1 = hNow, c0 = pw ? weekSum(pr, pw).t : null;
-    return { p, v, n, nNow, hpp, hr: nNow ? hcRag(hpp) : (hNow > 0 ? { cls:'warn', label:'DOPLNIT' } : { cls:'neutral', label:'–' }),
+    return { p, v, ev, n, nNow, hpp, hr: nNow ? hcRag(hpp) : (hNow > 0 ? { cls:'warn', label:'DOPLNIT' } : { cls:'neutral', label:'–' }),
              d: comp ? c1 - c0 : null, rg: comp ? rag(c1, c0) : rag(0, null), c1 };
   }).sort((a, b) => b.c1 - a.c1);
   const hcFilled = C.hc != null;
@@ -1209,6 +1221,7 @@ function renderTrend(){
   <div class="chips">${wksAll.slice(-12).map(w => `<button class="chip ${w === wk ? 'active' : ''}" data-twk="${w}">${cw(w)}<span class="d">${fmtD(weekDates(w)[0])}${weekCovered(w) < 7 ? ' · ' + weekCovered(w) + '/7' : ''}</span></button>`).join('')}</div>
   <div class="verdict v-${verdict.cls}">
     <div><div class="v-wk">${cw(wk)} · ${fmtD(weekDates(wk)[0])}–${fmtDY(weekDates(wk)[6])}${C.full ? '' : ` · neúplný (${C.cov}/7 dní)`}</div><div class="v-t">${verdict.t}</div></div>
+    <div class="v-cost"><div class="v-wk">Náklady ${cw(wk)}</div><div class="v-t">${fmtKc(C.e)}</div></div>
     <div class="v-s">${verdict.s}</div>
   </div>
   <div class="kt-grid">${tiles.join('')}</div>
@@ -1228,17 +1241,18 @@ function renderTrend(){
     <div class="legend"><span><i style="background:var(--navy)"></i>denní hodiny</span><span><i style="background:var(--night)"></i>noční hodiny</span><span><i style="background:var(--warn);border-radius:50%"></i>headcount</span><span>světlejší sloupec = neúplný týden</span></div>
     <div style="overflow-x:auto">${comboChart(wks)}</div></div>
 
-  <h2 style="margin-top:1.25rem">Projekty – hodiny a lidé po týdnech</h2>
+  <h2 style="margin-top:1.25rem">Projekty – hodiny, náklady a lidé po týdnech</h2>
   <div class="tbl-wrap" style="max-height:none"><table class="multi-foot">
-    <thead><tr><th>Projekt</th><th>Popis</th><th class="num">Lidí ${cw(wk)}</th><th class="num">h/os</th><th>Vytížení</th>${wks.map(w => `<th class="num">${cw(w)}${weekCovered(w) < 7 ? '*' : ''}<div style="font-weight:400;text-transform:none">h · lidí</div></th>`).join('')}<th class="num">Δ h</th><th>Trend</th></tr></thead>
+    <thead><tr><th>Projekt</th><th>Popis</th><th class="num">Lidí ${cw(wk)}</th><th class="num">h/os</th><th>Vytížení</th>${wks.map(w => `<th class="num">${cw(w)}${weekCovered(w) < 7 ? '*' : ''}<div style="font-weight:400;text-transform:none">h · € · lidí</div></th>`).join('')}<th class="num">Δ h</th><th>Trend</th></tr></thead>
     <tbody>${lines.map(l => `<tr><td class="mono">${esc(l.p)}</td><td class="desc">${esc(pname(l.p))}</td>
       <td class="num">${store.canWrite ? `<input class="hcin" type="number" min="0" step="0.5" inputmode="decimal" data-hcp="${esc(l.p)}" data-wk="${wk}" data-h="${l.c1 * 7 / (C.cov || 7)}" value="${l.nNow ?? ''}" aria-label="Počet lidí ${esc(l.p)}">` : fmt(l.nNow, 1)}</td>
       <td class="num">${fmt(l.hpp, 1)}</td><td><span class="tag ${l.hr.cls}">${l.hr.label}</span></td>
-      ${l.v.map((v, j) => `<td class="num ${v ? '' : 'zero'}">${fmt(v)}${l.n[j] != null ? `<div class="small muted">${fmt(l.n[j], 1)} lidí</div>` : ''}</td>`).join('')}
+      ${l.v.map((v, j) => `<td class="num ${v ? '' : 'zero'}">${fmt(v)}${v ? `<div class="cost-s">${fmtKc(l.ev[j])}</div>` : ''}${l.n[j] != null ? `<div class="small muted">${fmt(l.n[j], 1)} lidí</div>` : ''}</td>`).join('')}
       <td class="num">${l.d != null ? (l.d > 0 ? '+' : '') + fmt(l.d) : '–'}</td>
       <td><span class="tag ${l.rg.cls}">${l.rg.label}</span> <span class="mono small">${l.rg.pct != null ? pct(l.rg.pct) : ''}</span></td></tr>`).join('')}</tbody>
     <tfoot>
       <tr><td colspan="2">Hodiny celkem</td><td class="num">${fmt(hcpSum(wk), 1)}</td><td colspan="2" class="small muted">součet lidí na projektech</td>${wks.map(w => `<td class="num">${fmt(weekSum(rows, w).t)}${hcpSum(w) != null ? `<div class="small muted">${fmt(hcpSum(w), 1)} lidí</div>` : ''}</td>`).join('')}<td class="num">${comp ? (C.t - P.t > 0 ? '+' : '') + fmt(C.t - P.t) : '–'}</td><td><span class="tag ${comp ? rag(C.t, P.t).cls : 'neutral'}">${comp ? rag(C.t, P.t).label : '–'}</span></td></tr>
+      <tr class="cost-row"><td colspan="5"><b>Náklady celkem</b></td>${wks.map(w => `<td class="num"><b>${fmtKc(weekCost(rows, w))}</b></td>`).join('')}<td colspan="2"></td></tr>
       ${HC_FIELDS.map(([k, l]) => hcRow(l, h => h[k])).join('')}
       ${hcRow('Headcount celkem', h => h.t)}
       ${hcRow('Hodin na osobu', (h, w) => h.t ? weekSum(rows, w).t * 7 / (weekCovered(w) || 7) / h.t : null)}
@@ -1264,7 +1278,7 @@ function buildReport(wk){
     const n = hcpOf(wk, p), hpp = n ? a.t * scale / n : null;
     const rg = both ? rag(a.t, b.t) : rag(0, null);
     const st = n ? hcRag(hpp) : (a.t > 0 ? { cls:'warn', label:'DOPLNIT' } : { cls:'neutral', label:'–' });
-    return { p, desc: pname(p), t: a.t, dh: a.dh, nh: a.nh, tp: b ? b.t : null, d: b ? a.t - b.t : null, pct: rg.pct, trend: rg.label, n, hpp, st: st.label };
+    return { p, desc: pname(p), t: a.t, e: weekCost(pr, wk), ep: pw ? weekCost(pr, pw) : null, dh: a.dh, nh: a.nh, tp: b ? b.t : null, d: b ? a.t - b.t : null, pct: rg.pct, trend: rg.label, n, hpp, st: st.label };
   }).sort((x, y) => y.t - x.t);
   const range = `${fmtD(ds[0])}–${fmtDY(ds[6])}`;
   const sgn = v => v == null ? '–' : (v > 0 ? '+' : '') + fmt(v);
@@ -1315,8 +1329,9 @@ function reportHtml(r){
   const restT = rest.reduce((a, x) => a + x.t, 0);
   const th = (t, al) => `<td bgcolor="#DCE6F2" align="${al || 'left'}" style="${F}padding:6px 8px;border-bottom:2px solid ${NAVY};">${T(t, 9, NAVY, true)}</td>`;
   const td = (t, al, bg) => `<td ${bg ? `bgcolor="${bg}"` : ''} align="${al || 'left'}" style="${F}padding:5px 8px;border-bottom:1px solid ${LINE};">${t}</td>`;
-  const row = (x, i) => { const bg = i % 2 ? '#F7F9FB' : ''; return `<tr>${td(T(esc(x.p), 10, '#1B2430', true), 'left', bg)}${td(T(esc(x.desc), 10, MUT), 'left', bg)}${td(T(fmt(x.t), 10, '#1B2430', true), 'right', bg)}${r.both ? td(T(sgn(x.d), 10, x.d > 0 ? '#D24842' : x.d < 0 ? '#1A9963' : MUT), 'right', bg) : ''}${hasN ? td(T(x.n ? fmt(x.n, 1) : '–', 10), 'right', bg) + td(x.n ? T(fmt(x.hpp, 1), 10) + ' ' + st(x.st) : T('–', 10, MUT), 'right', bg) : ''}</tr>`; };
-  const nCols = 3 + (r.both ? 1 : 0) + (hasN ? 2 : 0);
+  const row = (x, i) => { const bg = i % 2 ? '#F7F9FB' : ''; return `<tr>${td(T(esc(x.p), 10, '#1B2430', true), 'left', bg)}${td(T(esc(x.desc), 10, MUT), 'left', bg)}${td(T(fmt(x.t), 10, '#1B2430', true), 'right', bg)}${td(T(fmtKc(x.e), 10, '#1B2430'), 'right', bg)}${r.both ? td(T(sgn(x.d), 10, x.d > 0 ? '#D24842' : x.d < 0 ? '#1A9963' : MUT), 'right', bg) : ''}${hasN ? td(T(x.n ? fmt(x.n, 1) : '–', 10), 'right', bg) + td(x.n ? T(fmt(x.hpp, 1), 10) + ' ' + st(x.st) : T('–', 10, MUT), 'right', bg) : ''}</tr>`; };
+  const nCols = 4 + (r.both ? 1 : 0) + (hasN ? 2 : 0);
+  const eTot = r.P.reduce((a, x) => a + x.e, 0), ePrev = r.pw ? r.P.reduce((a, x) => a + (x.ep || 0), 0) : null;
   const hcLine = r.h.t != null
     ? T(fmt(r.h.t, 1) + ' osob', 11, '#1B2430', true) + dl(cHCm, 'os.', 1) + '<br>' + T(HC_FIELDS.map(([k, l]) => `${l.toLowerCase()} ${fmt(r.h[k], 1)}`).join(' · '), 9, MUT)
     : T('nevyplněno', 11, '#C07F00', true);
@@ -1327,6 +1342,7 @@ function reportHtml(r){
   return `<table width="${W}" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
   <tr><td bgcolor="${NAVY}" width="6" style="font-size:1px;">&nbsp;</td><td bgcolor="#DCE6F2" style="${F}padding:10px 14px;">${T('Support Q – týdenní report ' + cw(r.wk), 15, NAVY, true)}<br>${T(r.range + (r.covW < 7 ? ` · neúplný týden (${r.covW}/7 dní)` : ''), 10, '#1B2430')}</td></tr></table>
 <table width="${W}" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid ${LINE};margin-top:10px;">
+  ${kv('Náklady celkem', T(fmtKc(eTot), 12, '#1B2430', true) + (ePrev != null ? '  ' + T(`(${cw(r.pw)}: ${fmtKc(ePrev)}, ${ePrev ? (eTot - ePrev > 0 ? '+' : '') + fmt((eTot - ePrev) / ePrev * 100, 1) + ' %' : ''})`, 9, MUT) : ''))}
   ${kv('Hodiny celkem', T(fmt(r.s.t) + ' h', 12, '#1B2430', true) + '  ' + T(`(den ${fmt(r.s.dh)} / noc ${fmt(r.s.nh)})`, 9, MUT))}
   ${kv('Změna vs. ' + (r.pw ? cw(r.pw) : 'předch. týden'), r.both ? T(`${sgn(r.s.t - r.sp.t)} h (${pct(r.R.pct, 1)})`, 11, '#1B2430', true) + ' ' + st(r.R.label) : T('nesrovnatelné – předchozí týden není celý', 10, MUT))}
   ${kv('Headcount', hcLine)}
@@ -1336,10 +1352,10 @@ function reportHtml(r){
 ${explain}
 <table width="${W}" cellpadding="0" cellspacing="0" style="margin-top:14px;"><tr><td style="${F}padding:0 2px 4px;">${T('TOP ' + top.length + ' projektů podle hodin', 12, NAVY, true)}</td></tr></table>
 <table width="${W}" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid ${LINE};">
-  <tr>${th('Projekt')}${th('Popis')}${th('Hodiny', 'right')}${r.both ? th('Δ h', 'right') : ''}${hasN ? th('Lidí', 'right') + th('h/os', 'right') : ''}</tr>
+  <tr>${th('Projekt')}${th('Popis')}${th('Hodiny', 'right')}${th('Náklady', 'right')}${r.both ? th('Δ h', 'right') : ''}${hasN ? th('Lidí', 'right') + th('h/os', 'right') : ''}</tr>
   ${top.map(row).join('')}
-  ${rest.length ? `<tr>${td(T(`Ostatní (${rest.length})`, 10, MUT))}${td('')}${td(T(fmt(restT), 10, MUT), 'right')}${'<td></td>'.repeat(nCols - 3)}</tr>` : ''}
-  <tr>${td(T('Celkem', 10, '#1B2430', true), 'left', SOFT)}${td('', 'left', SOFT)}${td(T(fmt(r.s.t), 10, '#1B2430', true), 'right', SOFT)}${r.both ? td(T(sgn(r.s.t - r.sp.t), 10, '#1B2430', true), 'right', SOFT) : ''}${hasN ? td(T(hcpSum(r.wk) != null ? fmt(hcpSum(r.wk), 1) : '–', 10, '#1B2430', true), 'right', SOFT) + td(T(r.hpw != null ? fmt(r.hpw, 1) : '–', 10, '#1B2430', true), 'right', SOFT) : ''}</tr>
+  ${rest.length ? `<tr>${td(T(`Ostatní (${rest.length})`, 10, MUT))}${td('')}${td(T(fmt(restT), 10, MUT), 'right')}${td(T(fmtKc(rest.reduce((a, x) => a + x.e, 0)), 10, MUT), 'right')}${'<td></td>'.repeat(nCols - 4)}</tr>` : ''}
+  <tr>${td(T('Celkem', 10, '#1B2430', true), 'left', SOFT)}${td('', 'left', SOFT)}${td(T(fmt(r.s.t), 10, '#1B2430', true), 'right', SOFT)}${td(T(fmtKc(eTot), 10, '#1B2430', true), 'right', SOFT)}${r.both ? td(T(sgn(r.s.t - r.sp.t), 10, '#1B2430', true), 'right', SOFT) : ''}${hasN ? td(T(hcpSum(r.wk) != null ? fmt(hcpSum(r.wk), 1) : '–', 10, '#1B2430', true), 'right', SOFT) + td(T(r.hpw != null ? fmt(r.hpw, 1) : '–', 10, '#1B2430', true), 'right', SOFT) : ''}</tr>
 </table>
 ${!hasN ? `<p style="${F}margin:8px 2px 0;">${T('Počty lidí na projektech nejsou vyplněné – hodiny na osobu po projektech nelze vyhodnotit.', 9, '#C07F00')}</p>` : r.noN.length ? `<p style="${F}margin:8px 2px 0;">${T(`Chybí počet lidí u ${r.noN.length} projektů: ${r.noN.map(x => x.p).join(', ')}`, 9, '#C07F00')}</p>` : ''}
 ${META.demo ? `<p style="${F}margin:10px 2px 0;">${T(`POZOR: ${fmtD(META.demo.from)}–${fmtDY(META.demo.to)} jsou ukázková (fiktivní) data.`, 9, '#D24842', true)}</p>` : ''}
@@ -1371,7 +1387,7 @@ function reportSheets(r){
   const n1 = v => v == null ? '' : Math.round(v * 10) / 10;
   const souhrn = [
     ['Support Q – týdenní report', cw(r.wk)], ['Období', r.range], [],
-    ['Hodiny celkem', n1(r.s.t)], ['z toho denní', n1(r.s.dh)], ['z toho noční', n1(r.s.nh)],
+    ['Náklady celkem (' + cur() + ')', Math.round(r.P.reduce((a, x) => a + x.e, 0) * 100) / 100], ['Hodiny celkem', n1(r.s.t)], ['z toho denní', n1(r.s.dh)], ['z toho noční', n1(r.s.nh)],
     ['Hodiny předchozí týden' + (r.pw ? ' (' + cw(r.pw) + ')' : ''), r.sp ? n1(r.sp.t) : ''],
     ['Změna h', r.sp ? n1(r.s.t - r.sp.t) : ''], ['Změna %', r.R.pct != null ? Math.round(r.R.pct * 1000) / 10 : ''], ['Trend', r.R.label], [],
     ...HC_FIELDS.map(([k, l]) => [l, n1(r.h[k])]), ['Headcount celkem', n1(r.h.t)],
@@ -1379,8 +1395,9 @@ function reportSheets(r){
     ['Kontrolní součet Sumar', r.imp ? (r.imp.chk === true ? 'OK' : r.imp.chk === false ? 'NESEDÍ' : 'neověřen') : ''], ['Zdrojový soubor', r.imp ? r.imp.file : ''],
     ['Vytvořeno', new Date().toLocaleString('cs-CZ')]
   ];
-  const projekty = [['Projekt','Popis', 'Hodiny ' + cw(r.wk), 'Denní h', 'Noční h', 'Hodiny ' + (r.pw ? cw(r.pw) : 'předch.'), 'Změna h', 'Změna %', 'Trend', 'Lidí', 'h/os', 'Vytížení']]
-    .concat(r.P.map(x => [x.p, x.desc, n1(x.t), n1(x.dh), n1(x.nh), n1(x.tp), n1(x.d), x.pct != null ? Math.round(x.pct * 1000) / 10 : '', x.trend, n1(x.n), n1(x.hpp), x.st]));
+  const projekty = [['Projekt','Popis', 'Hodiny ' + cw(r.wk), 'Náklady ' + cw(r.wk) + ' (' + cur() + ')', 'Denní h', 'Noční h', 'Hodiny ' + (r.pw ? cw(r.pw) : 'předch.'), 'Náklady ' + (r.pw ? cw(r.pw) : 'předch.') + ' (' + cur() + ')', 'Změna h', 'Změna %', 'Trend', 'Lidí', 'h/os', 'Vytížení']]
+    .concat(r.P.map(x => [x.p, x.desc, n1(x.t), Math.round(x.e * 100) / 100, n1(x.dh), n1(x.nh), n1(x.tp), x.ep != null ? Math.round(x.ep * 100) / 100 : '', n1(x.d), x.pct != null ? Math.round(x.pct * 1000) / 10 : '', x.trend, n1(x.n), n1(x.hpp), x.st]))
+    .concat([['CELKEM', '', n1(r.s.t), Math.round(r.P.reduce((a, x) => a + x.e, 0) * 100) / 100, n1(r.s.dh), n1(r.s.nh), r.sp ? n1(r.sp.t) : '', r.pw ? Math.round(r.P.reduce((a, x) => a + (x.ep || 0), 0) * 100) / 100 : '']]);
   const projs = [...new Set(rows.filter(q => wks.some(w => weekDates(w).includes(q.d))).map(q => q.p))].sort();
   const trend = [['Projekt','Popis', ...wks.flatMap(w => [cw(w) + ' h', cw(w) + ' lidí'])]]
     .concat(projs.map(p => { const pr = rows.filter(q => q.p === p); return [p, pname(p), ...wks.flatMap(w => [n1(weekSum(pr, w).t), n1(hcpOf(w, p))])]; }))
@@ -1468,23 +1485,24 @@ function renderTydny(){
   const lines = projs.map(p => {
     const days = ds.map(d => { const v = ROWS[d + '|' + p]; return v ? v[0] + v[1] : 0; });
     const t = days.reduce((a, b) => a + b, 0), pt = pw ? weekSum(rows.filter(r => r.p === p), pw).t : null;
-    return { p, days, t, pt, rg: both ? rag(t, pt) : rag(0, null), nh: wr.filter(r => r.p === p).reduce((a, r) => a + r.nh, 0) };
+    return { p, days, t, pt, e: costRows(wr.filter(r => r.p === p)), pe: pw ? weekCost(rows.filter(r => r.p === p), pw) : null, rg: both ? rag(t, pt) : rag(0, null), nh: wr.filter(r => r.p === p).reduce((a, r) => a + r.nh, 0) };
   }).sort((a, b) => b.t - a.t);
   el.innerHTML = `
   <div class="grid-kpi">
-    <div class="card kpi"><div class="lbl">${cw(wk)} · ${fmtD(ds[0])}–${fmtDY(ds[6])}</div><div class="val">${fmt(s.t)}</div><div class="sub">den ${fmt(s.dh)} · noc ${fmt(s.nh)} · v datech ${weekCovered(wk)}/7 dní</div></div>
+    <div class="card kpi"><div class="lbl">Náklady ${cw(wk)}</div><div class="val">${fmtKc(costRows(wr))}</div><div class="sub">${pw ? `${cw(pw)}: ${fmtKc(weekCost(rows, pw))}` : ''} · Ø ${s.t ? fmt(costRows(wr) / s.t, 2) : '–'} ${cur()}/h</div></div>
+    <div class="card kpi"><div class="lbl">${cw(wk)} · ${fmtD(ds[0])}–${fmtDY(ds[6])}</div><div class="val">${fmt(s.t)} h</div><div class="sub">den ${fmt(s.dh)} · noc ${fmt(s.nh)} · v datech ${weekCovered(wk)}/7 dní</div></div>
     <div class="card kpi"><div class="lbl">vs. ${pw ? cw(pw) : 'předchozí týden'}</div><div class="val">${sp ? fmt(sp.t) : '–'}</div>
       <div class="sub"><span class="tag ${R.cls}">${R.label}</span> ${R.pct != null ? pct(R.pct, 1) : (both ? '' : 'porovnání jen u dvou úplných týdnů')}</div></div>
     <div class="card kpi"><div class="lbl">Ø osob / den (ekv. 12h)</div><div class="val">${weekCovered(wk) ? fmt(s.t / SHIFT_H / weekCovered(wk), 1) : '–'}</div><div class="sub">max. den: ${fmt(Math.max(...ds.map(d => sum(wr.filter(r => r.d === d)).t)) / SHIFT_H, 1)} osob · headcount ${fmt(hcWeekTotal(wk), 1)}</div></div>
     <div class="card kpi"><div class="lbl">Víkend (So+Ne)</div><div class="val">${fmt(sum(wr.filter(r => dow(r.d) >= 5)).t)}</div><div class="sub">${s.t ? fmt(sum(wr.filter(r => dow(r.d) >= 5)).t / s.t * 100, 0) : 0} % hodin týdne</div></div>
   </div>
   <div class="tbl-wrap"><table>
-    <thead><tr><th>Projekt</th><th>Popis</th>${ds.map((d, j) => `<th class="num">${DOW[j]} ${fmtD(d)}${c.has(d) ? '' : ' ⚠'}</th>`).join('')}<th class="num">Týden</th><th class="num">z toho noc</th><th class="num">${pw ? cw(pw) : 'Předch.'}</th><th>Δ</th></tr></thead>
+    <thead><tr><th>Projekt</th><th>Popis</th>${ds.map((d, j) => `<th class="num">${DOW[j]} ${fmtD(d)}${c.has(d) ? '' : ' ⚠'}</th>`).join('')}<th class="num">Týden h</th><th class="num">Náklady</th><th class="num">z toho noc</th><th class="num">${pw ? cw(pw) : 'Předch.'}</th><th>Δ</th></tr></thead>
     <tbody>${lines.map(l => `<tr><td class="mono">${esc(l.p)}</td><td class="desc">${esc(pname(l.p))}</td>
       ${l.days.map(v => `<td class="num ${v ? '' : 'zero'}">${fmt(v)}</td>`).join('')}
-      <td class="num"><b>${fmt(l.t)}</b></td><td class="num">${fmt(l.nh)}</td><td class="num">${fmt(l.pt)}</td>
+      <td class="num"><b>${fmt(l.t)}</b></td><td class="num"><b>${fmtKc(l.e)}</b></td><td class="num">${fmt(l.nh)}</td><td class="num">${fmt(l.pt)}${l.pe ? `<div class="cost-s">${fmtKc(l.pe)}</div>` : ''}</td>
       <td><span class="tag ${l.rg.cls}">${l.rg.label}</span> <span class="mono small">${l.rg.pct != null ? pct(l.rg.pct) : ''}</span></td></tr>`).join('')}</tbody>
-    <tfoot><tr><td colspan="2">Celkem den</td>${ds.map(d => `<td class="num">${fmt(sum(wr.filter(r => r.d === d)).t)}</td>`).join('')}<td class="num">${fmt(s.t)}</td><td class="num">${fmt(s.nh)}</td><td class="num">${sp ? fmt(sp.t) : '–'}</td><td></td></tr></tfoot>
+    <tfoot><tr><td colspan="2">Celkem den</td>${ds.map(d => `<td class="num">${fmt(sum(wr.filter(r => r.d === d)).t)}</td>`).join('')}<td class="num">${fmt(s.t)}</td><td class="num"><b>${fmtKc(costRows(wr))}</b></td><td class="num">${fmt(s.nh)}</td><td class="num">${sp ? fmt(sp.t) : '–'}${pw ? `<div class="cost-s">${fmtKc(weekCost(rows, pw))}</div>` : ''}</td><td></td></tr></tfoot>
   </table></div>
   <p class="small muted">⚠ u dne = den není pokrytý žádným importem (neznamená nulu). Δ se počítá jen mezi dvěma úplnými týdny.</p>`;
 }
