@@ -132,6 +132,9 @@ table.avg-tab td:first-child{font-weight:600}table.avg-tab td .tag{margin-top:.1
 .kt-grid.kt4{grid-template-columns:repeat(4,minmax(0,1fr))}
 @media (max-width:1100px){ .kt-grid.kt4{grid-template-columns:repeat(2,minmax(0,1fr))} }
 @media (max-width:600px){ .kt-grid.kt4{grid-template-columns:minmax(0,1fr)} }
+.dbars{display:inline-flex;align-items:flex-end;gap:2px;height:26px;vertical-align:middle}.dbars i{width:9px;background:var(--navy);border-radius:2px 2px 0 0;opacity:.85}
+.dbars.big{height:44px}.dbars.big i{width:16px}
+.share{display:inline-block;width:120px;height:9px;background:var(--line);border-radius:5px;vertical-align:middle;overflow:hidden}.share i{display:block;height:100%;background:var(--navy)}
 .cost-m{font-family:var(--f-mono);font-weight:700;color:var(--navy)}
 [data-theme="dark"] .cost-m{color:#8DB8F0}
 [data-theme="dark"] .cost-s{color:#8DB8F0}
@@ -968,6 +971,12 @@ function monthForecast(mk){
   const rows = allRows(), byDow = weekDates(src).map(d => costRows(rows.filter(r => r.d === d)));
   return { e: miss.reduce((a, d) => a + byDow[dow(d)], 0), src, n: miss.length };
 }
+UI.vmode = { tydny:false, prehled:false };
+try { ['tydny','prehled'].forEach(k => UI.vmode[k] = localStorage.getItem('sq_vmode_' + k) === '1'); } catch(_){}
+const segCtl = k => `<div class="trend-bar" style="justify-content:flex-end"><div class="seg"><button class="${UI.vmode[k] ? '' : 'on'}" data-vmode="${k}|0">Přehled</button><button class="${UI.vmode[k] ? 'on' : ''}" data-vmode="${k}|1">Podrobně</button></div></div>`;
+document.addEventListener('click', e => { const b = e.target.closest('[data-vmode]'); if (!b) return; e.preventDefault(); const [k, v] = b.dataset.vmode.split('|'); UI.vmode[k] = v === '1'; try { localStorage.setItem('sq_vmode_' + k, v); } catch(_){} if (k === 'tydny') renderTydny(); else renderPrehled(); });
+// mini sloupcový graf hodin po dnech (Po–Ne)
+function dayBars(vals, max){ return `<span class="dbars">${vals.map((v, i) => `<i title="${['Po','Út','St','Čt','Pá','So','Ne'][i]}: ${fmt(v)} h" style="height:${v ? Math.max(8, v / (max || 1) * 100) : 0}%"></i>`).join('')}</span>`; }
 function renderPrehled(){
   const months = monthsList();
   const el = $('prehledBody');
@@ -1014,7 +1023,34 @@ function renderPrehled(){
   const dups = dupDescriptions(projs);
   const ovl = overlaps();
 
-  el.innerHTML = `
+  const kontrola = (noOrder.length || dups.length || ovl.length) ? `<div class="card"><h2>Ke kontrole</h2>
+    ${noOrder.length ? `<div class="warnbox"><b>Projekty bez objednávky (${noOrder.length}):</b> ${noOrder.map(p => `<span class="mono">${esc(p)}</span>`).join(', ')}</div>` : ''}
+    ${ovl.length ? `<div class="critbox"><b>Překryv objednávek</b> (stejný projekt ve dvou platných objednávkách – hodiny se započítají do obou): ${ovl.map(esc).join('; ')}</div>` : ''}
+    ${dups.length ? `<div class="warnbox"><b>Stejný popis u více projektů:</b> ${dups.map(a => a.map(p => `<span class="mono">${esc(p)}</span>`).join(' + ')).join('; ')}</div>` : ''}</div>` : '';
+  if (!UI.vmode.prehled){
+    const fc = monthForecast(mk), tot = costKnown || 1, top = [...trows].sort((a, b) => (b.cost || 0) - (a.cost || 0));
+    el.innerHTML = `${segCtl('prehled')}
+    <div class="grid-kpi">
+      <div class="card kpi"><div class="lbl">Náklady – ${monthName(mk)}</div><div class="val">${fmtKc(costKnown)}</div><div class="sub">za ${cov}/${dim} dní${fc ? ` · <b>odhad celý měsíc ≈ ${fmtKc(costKnown + fc.e)}</b>` : ''}</div></div>
+      <div class="card kpi"><div class="lbl">Hodiny</div><div class="val">${fmt(mSum.t)} h</div><div class="sub">${cov < dim ? '<span class="tag warn">NEÚPLNÝ</span> ' : ''}den ${fmt(mSum.dh)} · noc ${fmt(mSum.nh)}</div></div>
+      <div class="card kpi"><div class="lbl">Hodin na osobu / týden</div><div class="val">${fmt(hpwM, 1)}</div><div class="sub"><span class="tag ${HRM.cls}">${HRM.label}</span> norma Ø ${HC_NORM} h</div></div>
+      <div class="card kpi"><div class="lbl">Objednávky v riziku</div><div class="val">${META.orders.length ? risk : '–'}</div><div class="sub">${META.orders.length ? `<span class="tag ${risk ? 'crit' : 'good'}">${risk ? 'PŘEČERPÁNÍ' : 'OK'}</span> rychlé čerpání: ${fast}` : 'zatím žádné objednávky'}</div></div>
+    </div>
+    ${kontrola}
+    <div class="card"><h2>Projekty – ${monthName(mk)}</h2>
+    <div class="tbl-wrap" style="max-height:none"><table class="ptab">
+      <thead><tr><th>Projekt</th><th class="num">Náklady</th><th>Podíl na nákladech</th><th>Poslední týden</th><th>Objednávka</th></tr></thead>
+      <tbody>${top.map(r => `<tr><td><b>${esc(r.desc || r.p)}</b><div class="small muted mono">${esc(r.p)}</div></td>
+        <td class="num"><div class="e">${fmtKc(r.cost || 0)}</div><div class="h">${fmt(r.t)} h</div></td>
+        <td><span class="share"><i style="width:${Math.max(1, (r.cost || 0) / ((top[0] && top[0].cost) || 1) * 100)}%"></i></span> <span class="small">${fmt((r.cost || 0) / tot * 100, 1)} %</span></td>
+        <td><span class="tag ${r.rg.cls}">${r.rg.label}</span> <span class="small muted">${r.rg.pct != null ? pct(r.rg.pct) : ''}</span></td>
+        <td class="small">${r.ords.length ? r.ords.map(esc).join(', ') : '<span class="tag warn">BEZ PO</span>'}</td></tr>`).join('')}</tbody>
+      <tfoot><tr><td><b>Celkem</b> (${trows.length} projektů)</td><td class="num"><div class="e">${fmtKc(costKnown)}</div><div class="h">${fmt(mSum.t)} h</div></td><td>100 %</td><td colspan="2"></td></tr></tfoot>
+    </table></div>
+    <p class="small muted" style="margin:.5rem 0 0">Poslední týden = ${cur ? cw(cur) : 'poslední úplný týden'} proti ${prev ? cw(prev) : 'předchozímu'}. Rozpis po týdnech, noční podíl a graf jsou v režimu <a href="#" data-vmode="prehled|1">Podrobně</a>.</p></div>`;
+    return;
+  }
+  el.innerHTML = `${segCtl('prehled')}
   <div class="grid-kpi">
     <div class="card kpi"><div class="lbl">Hodiny – ${monthName(mk)}</div><div class="val">${fmt(mSum.t)}</div>
       <div class="sub">den ${fmt(mSum.dh)} · noc ${fmt(mSum.nh)} · pokryto <b>${cov}/${dim}</b> dní${cov < dim ? ' <span class="tag warn">NEÚPLNÝ</span>' : ''}</div></div>
@@ -1546,7 +1582,27 @@ function renderTydny(){
     const t = days.reduce((a, b) => a + b, 0), pt = pw ? weekSum(rows.filter(r => r.p === p), pw).t : null;
     return { p, days, t, pt, e: costRows(wr.filter(r => r.p === p)), pe: pw ? weekCost(rows.filter(r => r.p === p), pw) : null, rg: both ? rag(t, pt) : rag(0, null), nh: wr.filter(r => r.p === p).reduce((a, r) => a + r.nh, 0) };
   }).sort((a, b) => b.t - a.t);
-  el.innerHTML = `
+  if (!UI.vmode.tydny){
+    const E = costRows(wr), EP = pw ? weekCost(rows, pw) : null, mx = Math.max(1, ...lines.flatMap(l => l.days));
+    const chip = (a, b) => { if (!both || b == null) return '<span class="muted">–</span>'; const d = a - b, r = b ? d / b : 0; return `<span class="tag ${r > RAG_PCT ? 'crit' : r < -RAG_PCT ? 'good' : 'neutral'}">${Math.abs(d) < 1 ? '0 €' : sgn(d)}</span><div class="small muted">${b ? (r > 0 ? '+' : '') + fmt(r * 100, 0) + ' %' : ''}</div>`; };
+    const dayTot = ds.map(d => sum(wr.filter(r => r.d === d)).t), mxT = Math.max(1, ...dayTot);
+    el.innerHTML = `${segCtl('tydny')}
+    <div class="grid-kpi">
+      <div class="card kpi"><div class="lbl">Náklady ${cw(wk)}</div><div class="val">${fmtKc(E)}</div><div class="sub">${EP != null ? `${cw(pw)}: ${fmtKc(EP)} · ` : ''}${both ? `<span class="tag ${R.cls}">${R.label}</span>` : ''}</div></div>
+      <div class="card kpi"><div class="lbl">Hodiny ${cw(wk)}</div><div class="val">${fmt(s.t)} h</div><div class="sub">${fmtD(ds[0])}–${fmtDY(ds[6])} · v datech ${weekCovered(wk)}/7 dní</div></div>
+      <div class="card kpi"><div class="lbl">Po dnech (hodiny)</div><div class="val" style="height:46px">${dayBars(dayTot, mxT).replace('class="dbars"', 'class="dbars big"')}</div><div class="sub">Ø ${weekCovered(wk) ? fmt(s.t / SHIFT_H / weekCovered(wk), 1) : '–'} osob denně (12h směna)</div></div>
+    </div>
+    <div class="card"><h2>Projekty – ${cw(wk)}</h2>
+    <div class="tbl-wrap" style="max-height:none"><table class="ptab">
+      <thead><tr><th>Projekt</th><th class="num">Náklady</th><th>Po–Ne</th><th class="num">Změna proti ${pw ? cw(pw) : 'předch. týdnu'}</th></tr></thead>
+      <tbody>${[...lines].sort((a, b) => b.e - a.e).filter(l => l.t || l.pt).map(l => `<tr><td><b>${esc(pname(l.p) || l.p)}</b><div class="small muted mono">${esc(l.p)}</div></td>
+        <td class="num"><div class="e">${fmtKc(l.e)}</div><div class="h">${fmt(l.t)} h</div></td><td>${dayBars(l.days, mx)}</td><td class="num">${chip(l.e, l.pe)}</td></tr>`).join('')}</tbody>
+      <tfoot><tr><td><b>Celkem</b></td><td class="num"><div class="e">${fmtKc(E)}</div><div class="h">${fmt(s.t)} h</div></td><td>${dayBars(dayTot, mxT)}</td><td class="num">${chip(E, EP)}</td></tr></tfoot>
+    </table></div>
+    <p class="small muted" style="margin:.5rem 0 0">Sloupečky = hodiny po dnech (najetím myší uvidíš číslo). Rozpis po dnech v číslech je v režimu <a href="#" data-vmode="tydny|1">Podrobně</a>.</p></div>`;
+    return;
+  }
+  el.innerHTML = `${segCtl('tydny')}
   <div class="grid-kpi">
     <div class="card kpi"><div class="lbl">Náklady ${cw(wk)}</div><div class="val">${fmtKc(costRows(wr))}</div><div class="sub">${pw ? `${cw(pw)}: ${fmtKc(weekCost(rows, pw))}` : ''} · Ø ${s.t ? fmt(costRows(wr) / s.t, 2) : '–'} ${cur()}/h</div></div>
     <div class="card kpi"><div class="lbl">${cw(wk)} · ${fmtD(ds[0])}–${fmtDY(ds[6])}</div><div class="val">${fmt(s.t)} h</div><div class="sub">den ${fmt(s.dh)} · noc ${fmt(s.nh)} · v datech ${weekCovered(wk)}/7 dní</div></div>
